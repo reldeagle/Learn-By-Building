@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProjectStatus {
+  active
+  completed
+  abandoned
+}
+
+enum ReviewVerdict {
+  complete
+  needs_work
+}
+
+enum ReviewFeedback {
+  thumbs_up
+  thumbs_down
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  tracks    Track[]
+}
+
+model Track {
+  id           String    @id @default(cuid())
+  userId       String
+  technology   String
+  currentLevel Int       @default(1)
+  status       String    @default("active")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects     Project[]
+
+  @@unique([userId, technology])
+  @@index([userId])
+}
+
+model Project {
+  id              String        @id @default(cuid())
+  trackId         String
+  order           Int
+  difficulty      Int
+  title           String
+  goal            String
+  expectedOutcome String
+  hints           Json          @default("[]")
+  status          ProjectStatus @default(active)
+  track           Track         @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  requirements    Requirement[]
+  submissions     Submission[]
+  hintUnlocks     HintUnlock[]
+
+  @@unique([trackId, order])
+  @@index([trackId, status])
+}
+
+model Requirement {
+  id        String  @id @default(cuid())
+  projectId String
+  text      String
+  lastMet   Boolean @default(false)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model Submission {
+  id        String   @id @default(cuid())
+  projectId String
+  code      String   @db.Text
+  attempt   Int
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  review    Review?
+
+  @@unique([projectId, attempt])
+}
+
+model Review {
+  id                String        @id @default(cuid())
+  submissionId      String        @unique
+  verdict           ReviewVerdict
+  requirementStatus Json
+  feedback          Json
+  learnerFeedback   ReviewFeedback?
+  submission        Submission    @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+model HintUnlock {
+  id         String   @id @default(cuid())
+  projectId  String
+  level      Int
+  unlockedAt DateTime @default(now())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, level])
+}
