@@ -89,7 +89,7 @@ Phases 0 through 8 are complete. The application is ready for CI and Vercel depl
 
 ## Local setup
 
-1. Copy `.env.example` to `.env.local` and set `DATABASE_URL`, `LLM_PROVIDER`, and `GOOGLE_AI_STUDIO_API_KEY`.
+1. Copy `.env.example` to `.env.local` and set every blank value. Keep `NEXTAUTH_URL` as `http://localhost:3001` when using `npm run dev`.
 2. Install dependencies with `npm install`.
 3. Start the development server with `npm run dev`.
 
@@ -106,15 +106,28 @@ Useful checks:
 
 GitHub Actions runs typecheck, lint, unit tests, and a production build for pull requests and pushes to `main`. A successful push to `main` then runs `prisma migrate deploy` using the repository's `DATABASE_URL` GitHub Actions secret.
 
-To deploy with Vercel:
+Import the Git repository as a Vercel project with the default Next.js settings. Do not override the build command: `npm run build` already runs `prisma generate` first. Enable **Automatically expose System Environment Variables** so Vercel provides `VERCEL_URL`; the application uses it to set secure Auth.js cookies when `NEXTAUTH_URL` is not set.
 
-1. Import the Git repository as a Vercel project. Vercel automatically detects this as a Next.js application and creates preview deployments for non-production branches.
-2. Set these project environment variables for Preview and Production: `DATABASE_URL`, `LLM_PROVIDER=google-ai-studio`, `GOOGLE_AI_STUDIO_API_KEY`, `NEXTAUTH_SECRET`, and `AUTH_DEMO_PASSWORD`.
-3. Enable Vercel's Automatically expose System Environment Variables setting. Set `NEXTAUTH_URL` to the production site's canonical HTTPS URL; for preview sign-in testing, set it to that preview deployment's HTTPS URL as a branch-specific Preview variable.
-4. Add the production database connection string as the GitHub Actions secret named `DATABASE_URL`, then merge to `main` to run the migration before testing the production deployment.
-5. On the deployed production URL, sign in, start a React track, submit a project, confirm the review renders, and unlock the next project.
+Set the following Vercel Project Settings environment variables. Add them to both **Preview** and **Production**, using environment-specific values.
 
-Do not commit environment files or secrets. Use a separate database for preview deployments so preview migrations and test data cannot affect production.
+| Variable | Value to set |
+| --- | --- |
+| `DATABASE_URL` | Full Postgres connection string for that environment. Preview must use a separate database from Production. |
+| `LLM_PROVIDER` | `google-ai-studio` |
+| `GOOGLE_AI_STUDIO_API_KEY` | Your Google AI Studio server-side API key. |
+| `NEXTAUTH_URL` | Local: `http://localhost:3001`. Preview: the exact HTTPS URL of that preview deployment, preferably as a branch-specific variable. Production: the canonical HTTPS URL, for example `https://your-domain.example`. |
+| `NEXTAUTH_SECRET` | A newly generated random secret. Use a different value for Preview and Production. |
+| `AUTH_DEMO_PASSWORD` | A strong, unique password that the MVP credentials provider accepts. Use a different value for Preview and Production. |
+
+Set this GitHub Actions repository secret:
+
+| Secret | Value to set |
+| --- | --- |
+| `DATABASE_URL` | The same Production Postgres connection string used by Vercel Production. It is used only by the `prisma migrate deploy` job after a successful push to `main`. |
+
+Do not create `VERCEL_URL` yourself; Vercel supplies it. Do not commit `.env`, `.env.local`, or any secret values. After adding or changing Vercel variables, redeploy because variables apply only to new deployments.
+
+Before calling the deployment complete, confirm on the Production URL that you can sign in, start a React track, submit a project, see the review, and unlock the next project.
 
 ---
 

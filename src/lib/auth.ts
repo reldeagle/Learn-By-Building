@@ -19,6 +19,11 @@ const cookieOptions = {
   path: "/",
   secure: useSecureCookies,
 };
+const demoPassword = process.env.AUTH_DEMO_PASSWORD;
+
+if (process.env.NODE_ENV === "production" && !demoPassword) {
+  throw new Error("AUTH_DEMO_PASSWORD is required in production.");
+}
 
 export class UnauthorizedError extends Error {
   constructor() {
@@ -52,9 +57,12 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         const result = credentialsSchema.safeParse(credentials);
-        const password = process.env.AUTH_DEMO_PASSWORD;
 
-        if (!result.success || !password || result.data.password !== password) {
+        if (
+          !result.success ||
+          !demoPassword ||
+          result.data.password !== demoPassword
+        ) {
           return null;
         }
 
