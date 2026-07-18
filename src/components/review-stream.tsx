@@ -255,6 +255,9 @@ export function ReviewStream({
                 setReview(parsed.data);
                 setReviewId(persistedReviewId);
                 window.sessionStorage.removeItem(storageKey);
+                window.localStorage.removeItem(
+                  `learn-by-building:submission-draft:${projectId}`,
+                );
                 window.history.replaceState(
                   {},
                   "",
