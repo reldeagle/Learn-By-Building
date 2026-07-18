@@ -17,10 +17,9 @@ const firstProject = {
 };
 
 const review = {
-  verdict: "complete" as const,
   requirementStatus: [
     {
-      requirement: "Increment the count",
+      requirementIndex: 0,
       met: true,
       reason: "The click handler updates state.",
     },
@@ -55,7 +54,15 @@ vi.mock("@/lib/auth", () => ({
   requireUser: mocks.requireUser,
   UnauthorizedError: mocks.UnauthorizedError,
 }));
-vi.mock("@/lib/logger", () => ({ logEvent: mocks.logEvent }));
+vi.mock("@/lib/logger", () => ({
+  createRequestLogContext: vi.fn((operation: string) => ({
+    operation,
+    requestId: "request-1",
+  })),
+  logEvent: mocks.logEvent,
+  withRequestLogContext: <T>(_context: unknown, callback: () => T) =>
+    callback(),
+}));
 vi.mock("@/lib/rate-limit", () => ({
   enforceRateLimit: mocks.enforceRateLimit,
   RateLimitError: class RateLimitError extends Error {},
@@ -72,6 +79,10 @@ vi.mock("@/data/repositories", () => ({
         technology: "react",
         currentLevel: state.currentLevel,
       });
+    }
+
+    getByUserAndTechnology() {
+      return Promise.resolve(null);
     }
 
     updateLevel(_id: string, level: number) {
@@ -162,7 +173,11 @@ describe("core learner loop", () => {
       level: "beginner",
     });
 
-    expect(started.project.id).toBe(projectId);
+    expect(started).toMatchObject({
+      projectId,
+      status: "created",
+      trackId,
+    });
 
     const response = await POST(
       new Request("http://localhost/api/review", {

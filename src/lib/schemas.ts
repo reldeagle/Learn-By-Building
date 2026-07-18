@@ -48,6 +48,22 @@ export const ProjectSchema = z
     }
   });
 
+const FeedbackSchema = z
+  .object({
+    issue: nonEmptyText,
+    why: nonEmptyText,
+    priority: z.enum(["high", "medium", "low"]),
+  })
+  .strict();
+
+const RequirementEvaluationSchema = z
+  .object({
+    requirementIndex: z.number().int().nonnegative(),
+    met: z.boolean(),
+    reason: nonEmptyText,
+  })
+  .strict();
+
 export const ReviewSchema = z
   .object({
     verdict: z.enum(["complete", "needs_work"]),
@@ -62,17 +78,44 @@ export const ReviewSchema = z
           .strict(),
       )
       .min(1),
-    feedback: z.array(
-      z
-        .object({
-          issue: nonEmptyText,
-          why: nonEmptyText,
-          priority: z.enum(["high", "medium", "low"]),
-        })
-        .strict(),
-    ),
+    feedback: z.array(FeedbackSchema),
   })
   .strict();
+
+export const ReviewEvaluationSchema = z
+  .object({
+    requirementStatus: z.array(RequirementEvaluationSchema).min(1),
+    feedback: z.array(FeedbackSchema),
+  })
+  .strict();
+
+export function createReviewEvaluationSchema(requirementCount: number) {
+  return ReviewEvaluationSchema.superRefine((review, context) => {
+    if (review.requirementStatus.length !== requirementCount) {
+      context.addIssue({
+        code: "custom",
+        message: "Every project requirement must be evaluated exactly once.",
+        path: ["requirementStatus"],
+      });
+      return;
+    }
+
+    const indexes = new Set(
+      review.requirementStatus.map((item) => item.requirementIndex),
+    );
+
+    if (
+      indexes.size !== requirementCount ||
+      [...indexes].some((index) => index >= requirementCount)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Requirement indexes must match the project requirements.",
+        path: ["requirementStatus"],
+      });
+    }
+  });
+}
 
 export const LearnerContextSchema = z
   .object({
@@ -120,6 +163,7 @@ export const ReviewFeedbackInputSchema = z
 export type Hint = z.infer<typeof HintSchema>;
 export type Project = z.infer<typeof ProjectSchema>;
 export type Review = z.infer<typeof ReviewSchema>;
+export type ReviewEvaluation = z.infer<typeof ReviewEvaluationSchema>;
 export type LearnerContext = z.infer<typeof LearnerContextSchema>;
 export type StartTrackInput = z.infer<typeof StartTrackInputSchema>;
 export type RequestHintInput = z.infer<typeof RequestHintInputSchema>;

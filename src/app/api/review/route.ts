@@ -9,11 +9,15 @@ import {
   ReviewRepository,
   SubmissionRepository,
 } from "@/data/repositories";
-import { createReviewRequest, reviewSubmission } from "@/modules/code-review";
+import { reviewSubmission } from "@/modules/code-review";
 import { evaluateProgress } from "@/modules/progression";
 import { AppError, toAppError } from "@/lib/app-error";
 import { requireUser } from "@/lib/auth";
-import { logEvent } from "@/lib/logger";
+import {
+  createRequestLogContext,
+  logEvent,
+  withRequestLogContext,
+} from "@/lib/logger";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import {
   MAX_SUBMISSION_CHARACTERS,
@@ -89,157 +93,193 @@ async function readRequestBody(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const startedAt = Date.now();
-  let userId: string | null = null;
-  let projectId: string | null = null;
+  const logContext = createRequestLogContext("review");
 
-  try {
-    const user = await requireUser();
-    userId = user.id;
-    const { body, tooLarge } = await readRequestBody(request);
+  return withRequestLogContext(logContext, async () => {
+    const startedAt = Date.now();
+    let userId: string | null = null;
+    let projectId: string | null = null;
 
-    if (tooLarge) {
+    try {
+      const user = await requireUser();
+      userId = user.id;
+      const { body, tooLarge } = await readRequestBody(request);
+
+      if (tooLarge) {
+        logEvent("request.rejected", {
+          operation: "review",
+          userId,
+          projectId,
+          latencyMs: Date.now() - startedAt,
+          code: "invalid_request",
+        });
+        return Response.json(
+          { error: "Submission is too large." },
+          { status: 413 },
+        );
+      }
+
+      if (!body) {
+        logEvent("request.rejected", {
+          operation: "review",
+          userId,
+          projectId,
+          latencyMs: Date.now() - startedAt,
+          code: "invalid_request",
+        });
+        return Response.json({ error: "Invalid request." }, { status: 400 });
+      }
+
+      const input = ReviewRequestSchema.safeParse(body);
+
+      if (!input.success) {
+        logEvent("request.rejected", {
+          operation: "review",
+          userId,
+          projectId,
+          latencyMs: Date.now() - startedAt,
+          code: "invalid_request",
+        });
+        return Response.json({ error: "Invalid request." }, { status: 400 });
+      }
+      projectId = input.data.projectId;
+
+      enforceRateLimit(user.id, "review");
+
+      const projects = new ProjectRepository();
+      const project = await projects.getByIdForUser(
+        input.data.projectId,
+        user.id,
+      );
+
+      if (!project) {
+        logEvent("request.rejected", {
+          operation: "review",
+          userId,
+          projectId,
+          latencyMs: Date.now() - startedAt,
+          code: "not_found",
+        });
+        return Response.json({ error: "Project not found." }, { status: 404 });
+      }
+
+      if (project.status !== ProjectStatus.active) {
+        logEvent("request.rejected", {
+          operation: "review",
+          userId,
+          projectId,
+          latencyMs: Date.now() - startedAt,
+          code: "invalid_request",
+        });
+        return Response.json(
+          { error: "This project is no longer active." },
+          { status: 409 },
+        );
+      }
+
+      const provider = createLLMProvider();
+      const projectDefinition = toProjectDefinition(project);
+
+      const stream = new ReadableStream({
+        async start(controller) {
+          await withRequestLogContext(logContext, async () => {
+            try {
+              controller.enqueue(
+                event("progress", { message: "Reading your submission" }),
+              );
+
+              const review = await reviewSubmission(
+                projectDefinition,
+                input.data.code,
+                provider,
+              );
+              controller.enqueue(
+                event("progress", { message: "Saving your mentor feedback" }),
+              );
+              const nextStep = evaluateProgress(
+                { currentLevel: project.track.currentLevel },
+                review,
+              );
+              const submission =
+                await new SubmissionRepository().saveSubmission(
+                  project.id,
+                  input.data.code,
+                );
+
+              const savedReview =
+                await new ReviewRepository().saveReviewAndUpdateProject({
+                  submissionId: submission.id,
+                  projectId: project.id,
+                  trackId: project.track.id,
+                  verdict:
+                    review.verdict === "complete"
+                      ? ReviewVerdict.complete
+                      : ReviewVerdict.needs_work,
+                  requirementStatus: review.requirementStatus,
+                  feedback: review.feedback as Prisma.InputJsonValue,
+                  difficultyDelta: nextStep.difficultyDelta,
+                });
+
+              if (!savedReview) {
+                throw new AppError(
+                  "invalid_request",
+                  "This project is no longer active.",
+                  409,
+                );
+              }
+
+              logEvent("request.complete", {
+                operation: "review",
+                userId,
+                projectId: project.id,
+                latencyMs: Date.now() - startedAt,
+                verdict: review.verdict,
+              });
+              controller.enqueue(
+                event("review", { review, nextStep, reviewId: savedReview.id }),
+              );
+            } catch (error) {
+              const appError = toAppError(error);
+              logEvent("request.error", {
+                operation: "review",
+                userId,
+                projectId: project.id,
+                latencyMs: Date.now() - startedAt,
+                code: appError.code,
+              });
+              controller.enqueue(
+                event("error", {
+                  error: appError.message,
+                  retryable: appError.retryable,
+                }),
+              );
+            } finally {
+              controller.close();
+            }
+          });
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+          "Content-Type": "text/event-stream",
+        },
+      });
+    } catch (error) {
+      const appError = toAppError(error);
+      logEvent("request.error", {
+        operation: "review",
+        userId,
+        projectId,
+        latencyMs: Date.now() - startedAt,
+        code: appError.code,
+      });
       return Response.json(
-        { error: "Submission is too large." },
-        { status: 413 },
+        { error: appError.message, retryable: appError.retryable },
+        { status: appError.status },
       );
     }
-
-    if (!body) {
-      return Response.json({ error: "Invalid request." }, { status: 400 });
-    }
-
-    const input = ReviewRequestSchema.safeParse(body);
-
-    if (!input.success) {
-      return Response.json({ error: "Invalid request." }, { status: 400 });
-    }
-    projectId = input.data.projectId;
-
-    enforceRateLimit(user.id, "review");
-
-    const projects = new ProjectRepository();
-    const project = await projects.getByIdForUser(
-      input.data.projectId,
-      user.id,
-    );
-
-    if (!project) {
-      return Response.json({ error: "Project not found." }, { status: 404 });
-    }
-
-    if (project.status !== ProjectStatus.active) {
-      return Response.json(
-        { error: "This project is no longer active." },
-        { status: 409 },
-      );
-    }
-
-    const submission = await new SubmissionRepository().saveSubmission(
-      project.id,
-      input.data.code,
-    );
-    const provider = createLLMProvider();
-    const projectDefinition = toProjectDefinition(project);
-    const reviewRequest = createReviewRequest(
-      projectDefinition,
-      input.data.code,
-    );
-
-    const stream = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const token of provider.stream({
-            system: reviewRequest.system,
-            messages: reviewRequest.messages,
-            maxTokens: reviewRequest.maxTokens,
-            temperature: reviewRequest.temperature,
-          })) {
-            controller.enqueue(event("feedback", { token }));
-          }
-
-          const review = await reviewSubmission(
-            projectDefinition,
-            input.data.code,
-            provider,
-          );
-          const nextStep = evaluateProgress(
-            { currentLevel: project.track.currentLevel },
-            review,
-          );
-
-          const savedReview =
-            await new ReviewRepository().saveReviewAndUpdateProject({
-              submissionId: submission.id,
-              projectId: project.id,
-              trackId: project.track.id,
-              verdict:
-                review.verdict === "complete"
-                  ? ReviewVerdict.complete
-                  : ReviewVerdict.needs_work,
-              requirementStatus: review.requirementStatus,
-              feedback: review.feedback as Prisma.InputJsonValue,
-              difficultyDelta: nextStep.difficultyDelta,
-            });
-
-          if (!savedReview) {
-            throw new AppError(
-              "invalid_request",
-              "This project is no longer active.",
-              409,
-            );
-          }
-
-          logEvent("request.complete", {
-            operation: "review",
-            userId,
-            projectId: project.id,
-            latencyMs: Date.now() - startedAt,
-            verdict: review.verdict,
-          });
-          controller.enqueue(
-            event("review", { review, nextStep, reviewId: savedReview.id }),
-          );
-        } catch (error) {
-          const appError = toAppError(error);
-          logEvent("request.error", {
-            operation: "review",
-            userId,
-            projectId: project.id,
-            latencyMs: Date.now() - startedAt,
-            code: appError.code,
-          });
-          controller.enqueue(
-            event("error", {
-              error: appError.message,
-              retryable: appError.retryable,
-            }),
-          );
-        } finally {
-          controller.close();
-        }
-      },
-    });
-
-    return new Response(stream, {
-      headers: {
-        "Cache-Control": "no-cache, no-transform",
-        Connection: "keep-alive",
-        "Content-Type": "text/event-stream",
-      },
-    });
-  } catch (error) {
-    const appError = toAppError(error);
-    logEvent("request.error", {
-      operation: "review",
-      userId,
-      projectId,
-      latencyMs: Date.now() - startedAt,
-      code: appError.code,
-    });
-    return Response.json(
-      { error: appError.message, retryable: appError.retryable },
-      { status: appError.status },
-    );
-  }
+  });
 }

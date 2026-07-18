@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { FakeProvider } from "../ai/fake-provider";
 import { ProjectSchema, type Review } from "../lib/schemas";
@@ -41,9 +41,8 @@ describe("reviewSubmission", () => {
       project,
       "export default function Counter() {}",
       new FakeProvider({
-        verdict: "complete",
-        requirementStatus: project.requirements.map((requirement) => ({
-          requirement,
+        requirementStatus: project.requirements.map((_, requirementIndex) => ({
+          requirementIndex,
           met: true,
           reason: "Implemented in the submission.",
         })),
@@ -59,15 +58,14 @@ describe("reviewSubmission", () => {
       project,
       "export default function Counter() {}",
       new FakeProvider({
-        verdict: "complete",
         requirementStatus: [
           {
-            requirement: "Increment the count",
+            requirementIndex: 0,
             met: true,
             reason: "Implemented in the submission.",
           },
           {
-            requirement: "Reset the count",
+            requirementIndex: 1,
             met: false,
             reason: "No reset control is present.",
           },
@@ -83,6 +81,40 @@ describe("reviewSubmission", () => {
     );
 
     expect(result.verdict).toBe("needs_work");
+  });
+
+  it("uses one structured completion and maps requirement indexes to project text", async () => {
+    const complete = vi.fn(async (request) =>
+      request.schema!.parse({
+        requirementStatus: [
+          {
+            requirementIndex: 0,
+            met: true,
+            reason: "Implemented in the submission.",
+          },
+          {
+            requirementIndex: 1,
+            met: true,
+            reason: "Implemented in the submission.",
+          },
+        ],
+        feedback: [],
+      }),
+    );
+
+    const result = await reviewSubmission(
+      project,
+      "export default function Counter() {}",
+      {
+        complete,
+        async *stream() {},
+      },
+    );
+
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(
+      result.requirementStatus.map((status) => status.requirement),
+    ).toEqual(project.requirements);
   });
 });
 

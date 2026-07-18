@@ -53,7 +53,7 @@ flowchart TB
     DB[(Postgres · Neon/Supabase)]
 
     UI -->|server action / fetch| RSC
-    UI -->|streaming fetch| API
+        UI -->|review progress stream| API
     RSC --> Domain
     API --> Domain
     Domain --> AISvc
@@ -76,7 +76,7 @@ flowchart TB
 | Validation | **Zod** | One schema source for input validation *and* structured LLM output parsing. |
 | Database | **Postgres** (Neon/Supabase serverless) | Relational data (users, projects, submissions) with clear foreign keys. |
 | ORM | **Prisma** | Typed queries, migrations, good DX. |
-| Auth | **Auth.js (NextAuth)** — provider TBD | Deferred per PRD; interface reserved now. |
+| Auth | **Auth.js (NextAuth)** — Google OAuth | Google accounts persist learner progress; a credentials provider is limited to local development. |
 | Hosting | **Vercel** | First-class Next.js support; serverless scaling. |
 
 ---
@@ -119,7 +119,7 @@ A single port isolates the rest of the app from any vendor SDK.
 export interface LLMProvider {
   /** Structured, schema-validated completion. */
   complete<T>(req: CompletionRequest<T>): Promise<T>;
-  /** Token stream for review feedback UX. */
+  /** Optional token stream for display-only AI output. */
   stream(req: CompletionRequest<string>): AsyncIterable<string>;
 }
 
@@ -150,7 +150,7 @@ Invalid/partial model output triggers one bounded repair retry, then a graceful 
 ### Reliability & cost controls
 - Per-call `timeoutMs`, bounded retries with backoff.
 - `maxTokens` caps per capability; code submissions truncated/summarized above a size threshold.
-- Streaming used for review feedback so learners see progress immediately.
+- Review progress is streamed to learners while one structured review response is validated and persisted.
 
 ---
 
@@ -337,7 +337,7 @@ app/
 
 ## 10. Cross-Cutting Concerns
 
-- **Auth** — Auth.js (NextAuth) session gate on all actions/handlers; concrete provider (email/OAuth) deferred per PRD. Interface reserved so it slots in without touching domain code.
+- **Auth** — Auth.js (NextAuth) Google OAuth session gate on all actions/handlers. A credentials provider is available only outside production for local testing.
 - **Input validation** — Zod at every boundary; never trust client-side checks. Submission size limits enforced server-side.
 - **Security** — API keys server-only (env vars, never shipped to client); no secrets in the repo; pasted code treated as user data (see privacy, §13). CSRF handled via framework defaults; authorization checks scope every read/write to the owning user.
 - **Error handling** — typed error results from modules; AI failures (timeout, invalid output) degrade gracefully with a retry affordance, never a raw stack trace.
@@ -373,7 +373,7 @@ The design absorbs the PRD's roadmap without redesign:
 
 | Item | Risk / Question | Direction |
 |---|---|---|
-| Auth method | Email/password vs. OAuth undecided (PRD open). | Reserve Auth.js interface; decide before build. |
+| Auth method | Google OAuth requires environment-specific callback URLs. | Configure the Google OAuth client for each local, Preview, and Production origin. |
 | Submission privacy/retention | Pasted code is user data — how long is it stored, and is it ever sent to the provider for review beyond the request? | Define retention policy + a clear data-handling note; keep provider calls request-scoped. |
 | Model selection & eval | Which model/version; how to measure review quality? | Provider-agnostic layer + an eval harness comparing verdicts to a labeled set (fast-follow). |
 | Grading reliability | LLM may misjudge completion. | Anchor review to explicit requirement list; capture thumbs up/down to tune prompts. |

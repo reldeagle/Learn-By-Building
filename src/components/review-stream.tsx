@@ -106,7 +106,9 @@ export function ReviewStream({
   projectId: string;
   trackId: string;
 }) {
-  const [streamedFeedback, setStreamedFeedback] = useState("");
+  const [reviewProgress, setReviewProgress] = useState(
+    "Preparing your mentor review",
+  );
   const [review, setReview] = useState<Review | null>(null);
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [error, setError] = useState<{
@@ -197,17 +199,17 @@ export function ReviewStream({
             }
 
             const payload: unknown = JSON.parse(data);
-            if (name === "feedback") {
-              const token =
+            if (name === "progress") {
+              const progress =
                 typeof payload === "object" &&
                 payload !== null &&
-                "token" in payload &&
-                typeof payload.token === "string"
-                  ? payload.token
+                "message" in payload &&
+                typeof payload.message === "string"
+                  ? payload.message
                   : null;
 
-              if (token && !cancelled) {
-                setStreamedFeedback((current) => current + token);
+              if (progress && !cancelled) {
+                setReviewProgress(progress);
               }
             }
 
@@ -306,7 +308,7 @@ export function ReviewStream({
             className="mt-5 rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
             onClick={() => {
               setError(null);
-              setStreamedFeedback("");
+              setReviewProgress("Preparing your mentor review");
               setRetryAttempt((attempt) => attempt + 1);
             }}
             type="button"
@@ -338,13 +340,10 @@ export function ReviewStream({
         Mentor review
       </p>
       <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-100">
-        Reading your submission
+        {reviewProgress}
       </h1>
       <p className="mt-2 text-sm text-slate-400">
-        Feedback will appear here as your mentor works through it.
-      </p>
-      <p className="mt-6 whitespace-pre-wrap font-mono text-sm leading-6 text-slate-300">
-        {streamedFeedback || "Review starting…"}
+        Your mentor is checking each requirement before sharing feedback.
       </p>
     </section>
   );

@@ -46,14 +46,16 @@ vi.mock("@/lib/rate-limit", () => {
 
   return { enforceRateLimit: mocks.enforceRateLimit, RateLimitError };
 });
-vi.mock("@/lib/logger", () => ({ logEvent: mocks.logEvent }));
-vi.mock("@/modules/code-review", () => ({
-  createReviewRequest: vi.fn(() => ({
-    system: "mentor",
-    messages: [{ role: "user", content: "Review this code." }],
-    maxTokens: 200,
-    temperature: 0.2,
+vi.mock("@/lib/logger", () => ({
+  createRequestLogContext: vi.fn((operation: string) => ({
+    operation,
+    requestId: "request-1",
   })),
+  logEvent: mocks.logEvent,
+  withRequestLogContext: <T>(_context: unknown, callback: () => T) =>
+    callback(),
+}));
+vi.mock("@/modules/code-review", () => ({
   reviewSubmission: mocks.reviewSubmission,
 }));
 vi.mock("@/modules/progression", () => ({
@@ -90,11 +92,7 @@ beforeEach(() => {
   });
   mocks.saveSubmission.mockResolvedValue({ id: "submission-1" });
   mocks.saveReviewAndUpdateProject.mockResolvedValue({ id: "review-1" });
-  mocks.createProvider.mockReturnValue({
-    async *stream() {
-      yield "Nice start";
-    },
-  });
+  mocks.createProvider.mockReturnValue({});
   mocks.reviewSubmission.mockResolvedValue(review);
   mocks.evaluateProgress.mockReturnValue({
     action: "unlock_next",
@@ -103,7 +101,7 @@ beforeEach(() => {
 });
 
 describe("POST /api/review", () => {
-  it("streams feedback and persists the completed review", async () => {
+  it("reports local progress and persists the completed review", async () => {
     const response = await POST(
       new Request("http://localhost/api/review", {
         method: "POST",
@@ -116,7 +114,7 @@ describe("POST /api/review", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toContain("text/event-stream");
-    await expect(response.text()).resolves.toContain("event: feedback");
+    await expect(response.text()).resolves.toContain("event: progress");
     expect(mocks.saveReviewAndUpdateProject).toHaveBeenCalledWith(
       expect.objectContaining({
         submissionId: "submission-1",
@@ -146,6 +144,10 @@ describe("POST /api/review", () => {
 
     expect(response.status).toBe(404);
     expect(mocks.saveSubmission).not.toHaveBeenCalled();
+    expect(mocks.logEvent).toHaveBeenCalledWith(
+      "request.rejected",
+      expect.objectContaining({ code: "not_found" }),
+    );
   });
 
   it("rejects a project that has already been completed", async () => {
@@ -197,12 +199,10 @@ describe("POST /api/review", () => {
     expect(response.status).toBe(401);
   });
 
-  it("returns a safe retryable stream error when the provider fails", async () => {
-    mocks.createProvider.mockReturnValue({
-      async *stream() {
-        throw new AIServiceError("provider secret detail", true);
-      },
-    });
+  it("returns a safe retryable stream error when review fails", async () => {
+    mocks.reviewSubmission.mockRejectedValue(
+      new AIServiceError("provider secret detail", true),
+    );
 
     const response = await POST(
       new Request("http://localhost/api/review", {
@@ -224,5 +224,6 @@ describe("POST /api/review", () => {
         code: "ai_unavailable",
       }),
     );
+    expect(mocks.saveSubmission).not.toHaveBeenCalled();
   });
 });
