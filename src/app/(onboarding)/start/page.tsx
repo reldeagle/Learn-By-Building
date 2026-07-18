@@ -1,6 +1,21 @@
-import { OnboardingForm } from "@/components/onboarding-form";
+import { redirect } from "next/navigation";
 
-export default function StartPage() {
+import { OnboardingForm } from "@/components/onboarding-form";
+import { getSignInUrl } from "@/lib/auth-redirect";
+import { UnauthorizedError, requireUser } from "@/lib/auth";
+
+export default async function StartPage() {
+  let user;
+
+  try {
+    user = await requireUser();
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      redirect(getSignInUrl("/start"));
+    }
+    throw error;
+  }
+
   return (
     <main className="flex min-h-full flex-1 items-center bg-slate-950 px-6 py-16 text-slate-100">
       <section className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-slate-950/40 sm:p-10">
@@ -15,7 +30,7 @@ export default function StartPage() {
           challenging without being overwhelming.
         </p>
         <div className="mt-10">
-          <OnboardingForm />
+          <OnboardingForm userEmail={user.email} />
         </div>
       </section>
     </main>

@@ -48,6 +48,19 @@ export class TrackRepository {
     });
   }
 
+  getByUserAndTechnology(userId: string, technology: string) {
+    return prisma.track.findUnique({
+      where: { userId_technology: { userId, technology } },
+      include: {
+        projects: {
+          where: { status: ProjectStatus.active },
+          select: { id: true },
+          take: 1,
+        },
+      },
+    });
+  }
+
   getByIdForUser(trackId: string, userId: string) {
     return prisma.track.findFirst({
       where: { id: trackId, userId },

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { startTrack } from "@/app/actions/learning";
+import { getSignInUrl } from "@/lib/auth-redirect";
 
 const levels = [
   ["beginner", "Beginner", "I am still getting comfortable with JavaScript."],
@@ -20,17 +21,41 @@ const levels = [
   ],
 ] as const;
 
-export function OnboardingForm() {
+function startErrorMessage(code: string) {
+  switch (code) {
+    case "unauthorized":
+      return "Your session expired. Sign in again to start your track.";
+    case "rate_limited":
+      return "You have made several start attempts. Please wait a moment and try again.";
+    case "ai_unavailable":
+      return "Your mentor is temporarily unavailable. Please try again shortly.";
+    case "database_unavailable":
+      return "We could not reach your learning data. Please try again.";
+    case "configuration_error":
+      return "Track generation is not configured correctly yet. Please try again later.";
+    case "invalid_request":
+      return "Please check your calibration details and try again.";
+    default:
+      return "We could not start your track. Please try again.";
+  }
+}
+
+export function OnboardingForm({ userEmail }: { userEmail: string }) {
   const router = useRouter();
   const [jsExperience, setJsExperience] = useState("");
   const [level, setLevel] = useState<
     "beginner" | "intermediate" | "experienced"
   >("beginner");
   const [error, setError] = useState<string | null>(null);
+  const [needsSignIn, setNeedsSignIn] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (isPending) {
+      return;
+    }
 
     if (!jsExperience.trim()) {
       setError("Tell your mentor a little about your JavaScript experience.");
@@ -38,6 +63,7 @@ export function OnboardingForm() {
     }
 
     setError(null);
+    setNeedsSignIn(false);
     startTransition(async () => {
       try {
         const result = await startTrack({
@@ -45,15 +71,27 @@ export function OnboardingForm() {
           jsExperience,
           level,
         });
-        router.push(`/project/${result.project.id}`);
+        if (result.status === "error") {
+          setError(startErrorMessage(result.code));
+          setNeedsSignIn(result.code === "unauthorized");
+          return;
+        }
+
+        router.push(
+          result.projectId ? `/project/${result.projectId}` : "/track",
+        );
       } catch {
-        setError("We could not start your track. Sign in and try again.");
+        setError("We could not start your track. Please try again.");
       }
     });
   }
 
   return (
     <form className="space-y-8" onSubmit={submit}>
+      <p className="rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-sm text-slate-300">
+        You are signed in as{" "}
+        <span className="font-medium text-slate-100">{userEmail}</span>
+      </p>
       <fieldset>
         <legend className="text-sm font-medium text-slate-100">
           Choose a technology
@@ -130,7 +168,22 @@ export function OnboardingForm() {
         </div>
       </fieldset>
 
-      {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+      {error ? (
+        <p aria-live="polite" className="text-sm text-rose-300">
+          {error}
+          {needsSignIn ? (
+            <>
+              {" "}
+              <Link
+                className="underline underline-offset-4"
+                href={getSignInUrl("/start")}
+              >
+                Sign in again
+              </Link>
+            </>
+          ) : null}
+        </p>
+      ) : null}
 
       <button
         className="w-full rounded-xl bg-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
@@ -139,16 +192,6 @@ export function OnboardingForm() {
       >
         {isPending ? "Starting your track…" : "Start Project 1"}
       </button>
-
-      <p className="text-center text-sm text-slate-400">
-        Need to sign in first?{" "}
-        <Link
-          className="text-cyan-300 underline underline-offset-4"
-          href="/api/auth/signin?callbackUrl=/start"
-        >
-          Sign in
-        </Link>
-      </p>
     </form>
   );
 }

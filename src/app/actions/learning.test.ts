@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { Prisma } from "@/generated/prisma/client";
+
 const mocks = vi.hoisted(() => ({
   createWithFirstProject: vi.fn(),
   createProject: vi.fn(),
@@ -8,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   generateProject: vi.fn(),
   getActive: vi.fn(),
   getByIdForUser: vi.fn(),
+  getByUserAndTechnology: vi.fn(),
   getCompletedTitles: vi.fn(),
   getCurrentLevel: vi.fn(),
   getNextOrder: vi.fn(),
@@ -64,6 +67,10 @@ vi.mock("@/data/repositories", () => ({
     getByIdForUser(...args: unknown[]) {
       return mocks.getByIdForUser(...args);
     }
+
+    getByUserAndTechnology(...args: unknown[]) {
+      return mocks.getByUserAndTechnology(...args);
+    }
   },
 }));
 vi.mock("@/lib/auth", () => ({
@@ -105,6 +112,7 @@ beforeEach(() => {
   });
   mocks.createProvider.mockReturnValue({});
   mocks.generateProject.mockResolvedValue(project);
+  mocks.getByUserAndTechnology.mockResolvedValue(null);
 });
 
 describe("startTrack", () => {
@@ -120,7 +128,11 @@ describe("startTrack", () => {
       level: "beginner",
     });
 
-    expect(result.project).toEqual({ id: "project-1" });
+    expect(result).toEqual({
+      projectId: "project-1",
+      status: "created",
+      trackId: "track-1",
+    });
     expect(mocks.generateProject).toHaveBeenCalledWith(
       expect.objectContaining({
         jsExperience: "I have built a small JavaScript app.",
@@ -134,6 +146,74 @@ describe("startTrack", () => {
         technology: "react",
       }),
     );
+  });
+
+  it("resumes an existing track without generating another project", async () => {
+    mocks.getByUserAndTechnology.mockResolvedValue({
+      id: "track-1",
+      projects: [{ id: "project-1" }],
+    });
+
+    await expect(
+      startTrack({
+        technology: "react",
+        jsExperience: "I have built a small JavaScript app.",
+        level: "beginner",
+      }),
+    ).resolves.toEqual({
+      projectId: "project-1",
+      status: "resumed",
+      trackId: "track-1",
+    });
+    expect(mocks.enforceRateLimit).not.toHaveBeenCalled();
+    expect(mocks.generateProject).not.toHaveBeenCalled();
+    expect(mocks.createWithFirstProject).not.toHaveBeenCalled();
+  });
+
+  it("resumes the track page when there is no active project", async () => {
+    mocks.getByUserAndTechnology.mockResolvedValue({
+      id: "track-1",
+      projects: [],
+    });
+
+    await expect(
+      startTrack({
+        technology: "react",
+        jsExperience: "I have built a small JavaScript app.",
+        level: "beginner",
+      }),
+    ).resolves.toEqual({
+      projectId: null,
+      status: "resumed",
+      trackId: "track-1",
+    });
+  });
+
+  it("resumes the winning track when a concurrent create conflicts", async () => {
+    mocks.getByUserAndTechnology
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "track-1",
+        projects: [{ id: "project-1" }],
+      });
+    mocks.createWithFirstProject.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("Duplicate track", {
+        clientVersion: "test",
+        code: "P2002",
+      }),
+    );
+
+    await expect(
+      startTrack({
+        technology: "react",
+        jsExperience: "I have built a small JavaScript app.",
+        level: "beginner",
+      }),
+    ).resolves.toEqual({
+      projectId: "project-1",
+      status: "resumed",
+      trackId: "track-1",
+    });
   });
 });
 
