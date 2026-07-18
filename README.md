@@ -100,6 +100,16 @@ Useful checks:
 - `npm run format:check`
 - `npm run build`
 
+### Browser smoke suite
+
+The focused browser suite covers development credentials, start/resume, pasted code, drag-and-drop files, mentor retry, and the session-expiry return path. It is intentionally opt-in and never runs in CI: it needs an isolated database with Prisma migrations applied and a local server configured with `LLM_PROVIDER=fake`, so it never calls Gemini.
+
+1. Start the app against a disposable local or Neon development database after running `npx prisma migrate deploy`. Set `AUTH_DEMO_PASSWORD` and `LLM_PROVIDER=fake` in that server's environment.
+2. Install the test browser once with `npx playwright install chromium`.
+3. In another terminal, run `SMOKE_BASE_URL=http://localhost:3001 SMOKE_PASSWORD=<the local demo password> SMOKE_FAKE_PROVIDER=true npm run test:smoke`. PowerShell users can set those variables with `$env:` before the command.
+
+Never point this suite at a Preview or Production deployment. It creates learner records and projects. CI uses `FakeProvider` unit/integration tests only and does not call Gemini.
+
 ## Troubleshooting core flows
 
 The server writes structured JSON logs for sign-in, project generation, hints,
@@ -132,6 +142,10 @@ include API keys, passwords, email addresses, or learner-submitted code.
 3. Use Vercel Runtime Logs to search for a `requestId`, then correct the
    environment or provider issue indicated by the error code. Share the
    request ID and code with developers, not raw provider responses or secrets.
+4. If a review fails, return to the project or use **Retry review**. The local
+   draft remains available until a review is saved successfully. If a session
+   expires, sign in again from the provided link; the app returns to the
+   protected page you were visiting.
 
 ---
 
@@ -176,6 +190,15 @@ Google OAuth callback URLs must use this exact format:
 
 For local development that is `http://localhost:3001/api/auth/callback/google`.
 Add the corresponding exact Preview and Production URLs in the Google Cloud OAuth client configuration. The local `AUTH_DEMO_PASSWORD` flow is disabled in production and should not be added to Vercel.
+
+### Release checklist
+
+- [ ] Run `npm run typecheck`, `npm run lint`, `npm test`, and `npm run build`.
+- [ ] Run `npm run test:smoke` only against the isolated local fake-provider environment described above.
+- [ ] On a Vercel Preview, verify the deployed Google callback URL is registered, sign in, start or resume a track, paste code, upload source files, receive feedback, and continue progression.
+- [ ] Check the primary flow at desktop and narrow mobile widths, with keyboard-only navigation and visible focus indicators.
+- [ ] Throttle the browser network and confirm loading, disabled, retry, and saved-draft states remain understandable.
+- [ ] Confirm Preview and Production use separate pooled Neon runtime databases; migrations use `DATABASE_URL_UNPOOLED`, and all required variables are present before release.
 
 ---
 

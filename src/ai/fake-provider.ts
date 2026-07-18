@@ -24,18 +24,45 @@ const defaultResponse = {
   ],
 };
 
+const defaultReviewResponse = {
+  requirementStatus: [
+    {
+      requirementIndex: 0,
+      met: true,
+      reason: "The submission addresses this requirement.",
+    },
+    {
+      requirementIndex: 1,
+      met: true,
+      reason: "The submission addresses this requirement.",
+    },
+    {
+      requirementIndex: 2,
+      met: true,
+      reason: "The submission addresses this requirement.",
+    },
+  ],
+  feedback: [],
+};
+
 export class FakeProvider implements LLMProvider {
-  constructor(private readonly response: unknown = defaultResponse) {}
+  constructor(private readonly response?: unknown) {}
 
   async complete<T>(request: CompletionRequest<T>): Promise<T> {
     const startedAt = Date.now();
 
     try {
+      const response =
+        this.response ??
+        (request.schema?.safeParse(defaultReviewResponse).success
+          ? defaultReviewResponse
+          : defaultResponse);
+
       if (request.schema) {
-        return request.schema.parse(this.response);
+        return request.schema.parse(response);
       }
 
-      return this.response as T;
+      return response as T;
     } finally {
       logEvent("ai.call", {
         provider: "fake",

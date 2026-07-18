@@ -8,6 +8,8 @@ import type { CompletionRequest } from "./llm-provider";
 import { mentorSystemPrompt } from "./prompts/mentor-v1";
 import { createLLMProvider } from "./provider";
 import { ProjectSchema } from "../lib/schemas";
+import { generateProject } from "../modules/project-generator";
+import { reviewSubmission } from "../modules/code-review";
 
 const project = {
   title: "Counter app",
@@ -49,6 +51,26 @@ describe("FakeProvider", () => {
     await expect(provider.complete(structuredRequest)).resolves.toEqual(
       project,
     );
+  });
+
+  it("supports the complete local learner loop without a live model", async () => {
+    const provider = new FakeProvider();
+    const generatedProject = await generateProject(
+      {
+        technology: "react",
+        currentLevel: 1,
+        completedProjects: [],
+      },
+      provider,
+    );
+
+    await expect(
+      reviewSubmission(
+        generatedProject,
+        "export default function App() { return <button>Increment</button>; }",
+        provider,
+      ),
+    ).resolves.toMatchObject({ verdict: "complete" });
   });
 });
 
