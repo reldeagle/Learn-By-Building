@@ -1,8 +1,14 @@
 import { getServerSession, type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import { z } from "zod";
 
 import { UserRepository } from "../data/repositories";
+import {
+  createRequestLogContext,
+  logEvent,
+  withRequestLogContext,
+} from "./logger";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -20,9 +26,17 @@ const cookieOptions = {
   secure: useSecureCookies,
 };
 const demoPassword = process.env.AUTH_DEMO_PASSWORD;
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const googleSignInEnabled = Boolean(googleClientId && googleClientSecret);
+const developmentCredentialsEnabled =
+  process.env.NODE_ENV !== "production" && Boolean(demoPassword);
 
-if (process.env.NODE_ENV === "production" && !demoPassword) {
-  throw new Error("AUTH_DEMO_PASSWORD is required in production.");
+export function getAuthProviderAvailability() {
+  return {
+    developmentCredentials: developmentCredentialsEnabled,
+    google: googleSignInEnabled,
+  };
 }
 
 export class UnauthorizedError extends Error {
@@ -33,7 +47,38 @@ export class UnauthorizedError extends Error {
 }
 
 export const authOptions: NextAuthOptions = {
+  callbacks: {
+    async signIn({ account, user }) {
+      if (account?.provider !== "google") {
+        return true;
+      }
+
+      return withRequestLogContext(
+        createRequestLogContext("auth_google"),
+        async () => {
+          if (!user.email) {
+            logEvent("auth.google", { outcome: "denied" });
+            return false;
+          }
+
+          try {
+            await new UserRepository().upsertByEmail(user.email);
+            logEvent("auth.google", { outcome: "success" });
+            return true;
+          } catch (error) {
+            logEvent("auth.google", {
+              outcome: "error",
+              errorType:
+                error instanceof Error ? error.constructor.name : "unknown",
+            });
+            return false;
+          }
+        },
+      );
+    },
+  },
   session: { strategy: "jwt" },
+  pages: { signIn: "/signin" },
   cookies: {
     sessionToken: {
       name: `${cookiePrefix}learn-by-building.session-token`,
@@ -49,30 +94,60 @@ export const authOptions: NextAuthOptions = {
     },
   },
   providers: [
-    CredentialsProvider({
-      name: "Development credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        const result = credentialsSchema.safeParse(credentials);
+    ...(googleSignInEnabled
+      ? [
+          GoogleProvider({
+            clientId: googleClientId!,
+            clientSecret: googleClientSecret!,
+          }),
+        ]
+      : []),
+    ...(developmentCredentialsEnabled
+      ? [
+          CredentialsProvider({
+            name: "Development credentials",
+            credentials: {
+              email: { label: "Email", type: "email" },
+              password: { label: "Password", type: "password" },
+            },
+            async authorize(credentials) {
+              return withRequestLogContext(
+                createRequestLogContext("auth_authorize"),
+                async () => {
+                  const result = credentialsSchema.safeParse(credentials);
 
-        if (
-          !result.success ||
-          !demoPassword ||
-          result.data.password !== demoPassword
-        ) {
-          return null;
-        }
+                  if (
+                    !result.success ||
+                    !demoPassword ||
+                    result.data.password !== demoPassword
+                  ) {
+                    logEvent("auth.authorize", { outcome: "denied" });
+                    return null;
+                  }
 
-        const user = await new UserRepository().upsertByEmail(
-          result.data.email,
-        );
+                  try {
+                    const user = await new UserRepository().upsertByEmail(
+                      result.data.email,
+                    );
 
-        return { id: user.id, email: user.email };
-      },
-    }),
+                    logEvent("auth.authorize", { outcome: "success" });
+                    return { id: user.id, email: user.email };
+                  } catch (error) {
+                    logEvent("auth.authorize", {
+                      outcome: "error",
+                      errorType:
+                        error instanceof Error
+                          ? error.constructor.name
+                          : "unknown",
+                    });
+                    throw error;
+                  }
+                },
+              );
+            },
+          }),
+        ]
+      : []),
   ],
 };
 
@@ -81,12 +156,14 @@ export async function requireUser() {
   const email = session?.user?.email;
 
   if (!email) {
+    logEvent("auth.session", { outcome: "missing" });
     throw new UnauthorizedError();
   }
 
   const user = await new UserRepository().findByEmail(email);
 
   if (!user) {
+    logEvent("auth.session", { outcome: "user_not_found" });
     throw new UnauthorizedError();
   }
 

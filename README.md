@@ -2,7 +2,7 @@
 
 **Learn By Building** is an AI-mentor coding-education web app. Instead of watching lessons, learners are handed increasingly difficult real projects by an AI mentor, submit their own code, and get concise feedback that *explains* mistakes rather than fixing them. Progression is earned by demonstrated ability, not by chapter number.
 
-> Status: **pre-implementation**. This repo currently contains the product/architecture/roadmap docs only — no application code yet. See [Project Status](#project-status).
+> Status: **core learner loop implemented**. See [Project Status](#project-status) and [Troubleshooting](#troubleshooting-core-flows) before reporting a local or deployment issue.
 
 ---
 
@@ -89,7 +89,7 @@ Phases 0 through 8 are complete. The application is ready for CI and Vercel depl
 
 ## Local setup
 
-1. Copy `.env.example` to `.env.local` and set every blank value. Keep `NEXTAUTH_URL` as `http://localhost:3001` when using `npm run dev`.
+1. Copy `.env.example` to `.env.local` and set every blank value. Keep `NEXTAUTH_URL` as `http://localhost:3001` when using `npm run dev`. For local testing, set `AUTH_DEMO_PASSWORD`; Google OAuth is optional locally.
 2. Install dependencies with `npm install`.
 3. Start the development server with `npm run dev`.
 
@@ -99,6 +99,39 @@ Useful checks:
 - `npm run typecheck`
 - `npm run format:check`
 - `npm run build`
+
+## Troubleshooting core flows
+
+The server writes structured JSON logs for sign-in, project generation, hints,
+and code review. Each request has a `requestId`; use that value to follow one
+failed request through local terminal output or Vercel Runtime Logs. Logs never
+include API keys, passwords, email addresses, or learner-submitted code.
+
+### Local development
+
+1. Confirm `npm run dev` is running on `http://localhost:3001` and
+   `NEXTAUTH_URL` uses that exact URL.
+2. Clear this app's local cookies and sign in again if a session redirects to a
+   different local project. Localhost cookies are shared across ports, so each
+   app must keep its own Auth.js cookie names and `NEXTAUTH_URL`.
+3. For a failed track start or review, find the matching `request.error` log.
+   Its `code` identifies the safe failure category: `unauthorized`,
+   `rate_limited`, `ai_unavailable`, `database_unavailable`,
+   `configuration_error`, or `invalid_request`.
+4. Verify `DATABASE_URL`, `LLM_PROVIDER`, and `GOOGLE_AI_STUDIO_API_KEY` are
+   present in the environment used by the running server. Do not paste their
+   values into logs, issues, or chat.
+
+### Vercel
+
+1. Confirm the deployment has its own `DATABASE_URL`, Gemini API key,
+   `NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and an HTTPS
+   `NEXTAUTH_URL` that exactly matches the deployed domain.
+2. After changing Vercel environment variables, redeploy; existing deployments
+   do not receive the new values.
+3. Use Vercel Runtime Logs to search for a `requestId`, then correct the
+   environment or provider issue indicated by the error code. Share the
+   request ID and code with developers, not raw provider responses or secrets.
 
 ---
 
@@ -117,7 +150,8 @@ Set the following Vercel Project Settings environment variables. Add them to bot
 | `GOOGLE_AI_STUDIO_API_KEY` | Your Google AI Studio server-side API key. |
 | `NEXTAUTH_URL` | Local: `http://localhost:3001`. Preview: the exact HTTPS URL of that preview deployment, preferably as a branch-specific variable. Production: the canonical HTTPS URL, for example `https://your-domain.example`. |
 | `NEXTAUTH_SECRET` | A newly generated random secret. Use a different value for Preview and Production. |
-| `AUTH_DEMO_PASSWORD` | A strong, unique password that the MVP credentials provider accepts. Use a different value for Preview and Production. |
+| `GOOGLE_CLIENT_ID` | OAuth 2.0 web client ID from Google Cloud. Add the matching deployment callback URL in Google Cloud. |
+| `GOOGLE_CLIENT_SECRET` | OAuth 2.0 web client secret from Google Cloud. Keep it server-side only. |
 
 Set this GitHub Actions repository secret:
 
@@ -129,11 +163,18 @@ Do not create `VERCEL_URL` yourself; Vercel supplies it. Do not commit `.env`, `
 
 Before calling the deployment complete, confirm on the Production URL that you can sign in, start a React track, submit a project, see the review, and unlock the next project.
 
+Google OAuth callback URLs must use this exact format:
+
+`[origin]/api/auth/callback/google`
+
+For local development that is `http://localhost:3001/api/auth/callback/google`.
+Add the corresponding exact Preview and Production URLs in the Google Cloud OAuth client configuration. The local `AUTH_DEMO_PASSWORD` flow is disabled in production and should not be added to Vercel.
+
 ---
 
 ## Key Open Questions
 
-- Auth method (email/password vs. OAuth) — deferred to build phase.
+- Google OAuth client configuration for local, Preview, and Production callback URLs.
 - Submission storage/retention policy and privacy handling for pasted code.
 - Final LLM provider/model selection and prompt-tuning strategy.
 

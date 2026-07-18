@@ -140,7 +140,7 @@ The mentor persona is the product. Requirements:
 
 - Learners code in their own editor and paste/upload back. *(Assumption — validated by scope choice; revisit if drop-off at submission is high.)*
 - Requires user accounts to persist progress. *(Assumption for MVP — needed for "leave and return.")*
-- **Open:** Auth method (email/password vs. OAuth) — deferred to build phase.
+- **Decision:** Google OAuth is the production sign-in method. Local development may use an isolated credentials provider for testing.
 - **Open:** How submissions are stored/retained and any privacy handling for pasted code.
 - **Open:** LLM provider/model and prompt strategy for review + generation (default to a latest, capable model; finalize in tech design).
 

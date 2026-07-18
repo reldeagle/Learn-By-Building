@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { getSignInUrl } from "@/lib/auth-redirect";
+
 export default function Home() {
   return (
     <main className="flex min-h-full flex-1 items-center justify-center bg-slate-950 px-6 py-16 text-slate-100">
@@ -16,7 +18,7 @@ export default function Home() {
         </p>
         <Link
           className="mt-8 inline-flex rounded-xl bg-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
-          href="/start"
+          href={getSignInUrl("/start")}
         >
           Start your React track
         </Link>

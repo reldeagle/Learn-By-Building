@@ -9,6 +9,7 @@ import {
   VerdictBanner,
 } from "@/components/project-ui";
 import { ProjectRepository, ReviewRepository } from "@/data/repositories";
+import { getSignInUrl } from "@/lib/auth-redirect";
 import { UnauthorizedError, requireUser } from "@/lib/auth";
 import { ReviewSchema } from "@/lib/schemas";
 
@@ -26,9 +27,7 @@ export default async function ReviewPage({
     user = await requireUser();
   } catch (error) {
     if (error instanceof UnauthorizedError) {
-      redirect(
-        `/api/auth/signin?callbackUrl=${encodeURIComponent(`/project/${id}/review`)}`,
-      );
+      redirect(getSignInUrl(`/project/${id}/review`));
     }
     throw error;
   }

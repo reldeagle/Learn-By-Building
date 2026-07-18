@@ -5,6 +5,7 @@ import { CodeInput } from "@/components/code-input";
 import { HintControl } from "@/components/hint-control";
 import { RequirementRow } from "@/components/project-ui";
 import { HintRepository, ProjectRepository } from "@/data/repositories";
+import { getSignInUrl } from "@/lib/auth-redirect";
 import { UnauthorizedError, requireUser } from "@/lib/auth";
 import { ProjectSchema } from "@/lib/schemas";
 
@@ -20,9 +21,7 @@ export default async function ProjectPage({
     user = await requireUser();
   } catch (error) {
     if (error instanceof UnauthorizedError) {
-      redirect(
-        `/api/auth/signin?callbackUrl=${encodeURIComponent(`/project/${id}`)}`,
-      );
+      redirect(getSignInUrl(`/project/${id}`));
     }
     throw error;
   }

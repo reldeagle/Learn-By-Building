@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { ProjectCard } from "@/components/project-ui";
 import { TrackRepository } from "@/data/repositories";
+import { getSignInUrl } from "@/lib/auth-redirect";
 import { UnauthorizedError, requireUser } from "@/lib/auth";
 
 export default async function TrackPage() {
@@ -11,7 +12,7 @@ export default async function TrackPage() {
     user = await requireUser();
   } catch (error) {
     if (error instanceof UnauthorizedError) {
-      redirect("/api/auth/signin?callbackUrl=/track");
+      redirect(getSignInUrl("/track"));
     }
     throw error;
   }
