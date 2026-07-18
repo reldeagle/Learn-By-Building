@@ -19,11 +19,12 @@ import {
   withRequestLogContext,
 } from "@/lib/logger";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { ProjectSchema, ReviewRequestSchema } from "@/lib/schemas";
 import {
+  buildSubmissionCode,
   MAX_SUBMISSION_CHARACTERS,
-  ProjectSchema,
-  ReviewRequestSchema,
-} from "@/lib/schemas";
+  type SubmissionPayload,
+} from "@/lib/submission-files";
 
 const encoder = new TextEncoder();
 const MAX_REVIEW_REQUEST_BYTES = MAX_SUBMISSION_CHARACTERS * 4 + 4_096;
@@ -46,6 +47,12 @@ function toProjectDefinition(project: {
     hints: project.hints,
     requirements: project.requirements.map((requirement) => requirement.text),
   });
+}
+
+function codeForSubmission(submission: SubmissionPayload) {
+  return "files" in submission
+    ? buildSubmissionCode(submission.files)
+    : submission.code;
 }
 
 async function readRequestBody(request: Request) {
@@ -144,7 +151,8 @@ export async function POST(request: Request) {
       }
       projectId = input.data.projectId;
 
-      enforceRateLimit(user.id, "review");
+      await enforceRateLimit(user.id, "review");
+      const code = codeForSubmission(input.data.submission);
 
       const projects = new ProjectRepository();
       const project = await projects.getByIdForUser(
@@ -190,7 +198,7 @@ export async function POST(request: Request) {
 
               const review = await reviewSubmission(
                 projectDefinition,
-                input.data.code,
+                code,
                 provider,
               );
               controller.enqueue(
@@ -203,7 +211,7 @@ export async function POST(request: Request) {
               const submission =
                 await new SubmissionRepository().saveSubmission(
                   project.id,
-                  input.data.code,
+                  code,
                 );
 
               const savedReview =

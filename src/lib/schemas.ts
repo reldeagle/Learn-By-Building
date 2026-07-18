@@ -1,8 +1,10 @@
 import { z } from "zod";
 
-const nonEmptyText = z.string().trim().min(1);
+import { SubmissionPayloadSchema } from "./submission-files";
 
-export const MAX_SUBMISSION_CHARACTERS = 100_000;
+export { MAX_SUBMISSION_CHARACTERS } from "./submission-files";
+
+const nonEmptyText = z.string().trim().min(1);
 
 export const HintSchema = z
   .object({
@@ -149,7 +151,7 @@ export const RequestNextProjectInputSchema = z
 export const ReviewRequestSchema = z
   .object({
     projectId: z.string().cuid(),
-    code: z.string().min(1).max(MAX_SUBMISSION_CHARACTERS),
+    submission: SubmissionPayloadSchema,
   })
   .strict();
 

@@ -2,6 +2,19 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 type LogValue = boolean | number | string | null;
 
+const restrictedFieldNames = new Set([
+  "api_key",
+  "apikey",
+  "authorization",
+  "code",
+  "content",
+  "file",
+  "files",
+  "password",
+  "secret",
+  "submission",
+]);
+
 type RequestLogContext = {
   requestId: string;
   requestOperation: string;
@@ -21,11 +34,18 @@ export function withRequestLogContext<T>(
 }
 
 export function logEvent(event: string, fields: Record<string, LogValue>) {
+  const safeFields = Object.fromEntries(
+    Object.entries(fields).map(([key, value]) => [
+      key,
+      restrictedFieldNames.has(key.toLowerCase()) ? "[redacted]" : value,
+    ]),
+  );
+
   console.info(
     JSON.stringify({
       timestamp: new Date().toISOString(),
       event,
-      ...fields,
+      ...safeFields,
       ...requestLogContext.getStore(),
     }),
   );

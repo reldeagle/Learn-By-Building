@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { MAX_SUBMISSION_CHARACTERS } from "@/lib/schemas";
+export const MAX_SUBMISSION_CHARACTERS = 100_000;
 
 export const MAX_SUBMISSION_FILES = 10;
 
@@ -29,12 +29,41 @@ export type SubmissionEditorLanguage = z.infer<
   typeof SubmissionEditorLanguageSchema
 >;
 
-const SubmissionFileSchema = z
+export const SubmissionFileSchema = z
   .object({
     name: z.string().trim().min(1),
     content: z.string(),
   })
   .strict();
+
+export const SubmissionPayloadSchema = z
+  .union([
+    z
+      .object({
+        code: z
+          .string()
+          .max(MAX_SUBMISSION_CHARACTERS)
+          .refine((value) => value.trim().length > 0),
+      })
+      .strict(),
+    z
+      .object({
+        files: z.array(SubmissionFileSchema).min(1).max(MAX_SUBMISSION_FILES),
+      })
+      .strict(),
+  ])
+  .superRefine((submission, context) => {
+    if (!("files" in submission)) {
+      return;
+    }
+
+    const error = validateSubmissionFiles(submission.files);
+    if (error) {
+      context.addIssue({ code: "custom", message: error, path: ["files"] });
+    }
+  });
+
+export type SubmissionPayload = z.infer<typeof SubmissionPayloadSchema>;
 
 export const SubmissionDraftSchema = z
   .object({

@@ -132,8 +132,10 @@ describe("API input schemas", () => {
     ).toBe(true);
     expect(RequestHintInputSchema.safeParse({ projectId }).success).toBe(true);
     expect(
-      ReviewRequestSchema.safeParse({ projectId, code: "export default {}" })
-        .success,
+      ReviewRequestSchema.safeParse({
+        projectId,
+        submission: { code: "export default {}" },
+      }).success,
     ).toBe(true);
   });
 
@@ -145,13 +147,14 @@ describe("API input schemas", () => {
         level: "beginner",
       }).success,
     ).toBe(false);
-    expect(ReviewRequestSchema.safeParse({ projectId, code: "" }).success).toBe(
-      false,
-    );
+    expect(
+      ReviewRequestSchema.safeParse({ projectId, submission: { code: "" } })
+        .success,
+    ).toBe(false);
     expect(
       ReviewRequestSchema.safeParse({
         projectId,
-        code: "a".repeat(MAX_SUBMISSION_CHARACTERS + 1),
+        submission: { code: "a".repeat(MAX_SUBMISSION_CHARACTERS + 1) },
       }).success,
     ).toBe(false);
   });

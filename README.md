@@ -12,7 +12,7 @@
 
 1. **Pick a skill** — choose a technology (React only in MVP) and answer a short calibration (prior JS experience, self-rated level).
 2. **Generate a project** — the AI produces a right-sized project (~15–30 min) with a goal, a concrete requirements checklist, and an expected outcome.
-3. **Build it** — in your own editor (no in-app IDE in MVP).
+3. **Build it** — in the focused in-app editor or your own editor; you can also upload supported source files for review.
 4. **Submit for review** — paste or upload your code; the AI reviews correctness, bugs, readability, and best practices, explaining the *why* behind each issue.
 5. **Improve or unlock** — fix and resubmit until requirements are met, or move on to a harder project. Struggling learners get another project at the same level before advancing.
 
@@ -137,15 +137,16 @@ include API keys, passwords, email addresses, or learner-submitted code.
 
 ## Deployment
 
-GitHub Actions runs typecheck, lint, unit tests, and a production build for pull requests and pushes to `main`. A successful push to `main` then runs `prisma migrate deploy` using the repository's `DATABASE_URL` GitHub Actions secret.
+GitHub Actions runs typecheck, lint, unit tests, and a production build for pull requests and pushes to `main`. A successful push to `main` then runs `prisma migrate deploy` using the repository's `DATABASE_URL_UNPOOLED` GitHub Actions secret.
 
-Import the Git repository as a Vercel project with the default Next.js settings. Do not override the build command: `npm run build` already runs `prisma generate` first. Enable **Automatically expose System Environment Variables** so Vercel provides `VERCEL_URL`; the application uses it to set secure Auth.js cookies when `NEXTAUTH_URL` is not set.
+Import the Git repository as a Vercel project with the default Next.js settings. Do not override the build command: `npm run build` already runs `prisma generate` first. Set `NEXTAUTH_URL` explicitly for every production deployment; do not rely on an automatically supplied Vercel URL for Auth.js configuration.
 
 Set the following Vercel Project Settings environment variables. Add them to both **Preview** and **Production**, using environment-specific values.
 
 | Variable | Value to set |
 | --- | --- |
-| `DATABASE_URL` | Full Postgres connection string for that environment. Preview must use a separate database from Production. |
+| `DATABASE_URL` | **Pooled** Neon Postgres connection string for that environment. Its hostname includes `-pooler` and it includes `sslmode=require`. Preview must use a separate database from Production. |
+| `DATABASE_URL_UNPOOLED` | **Direct** Neon connection string for Prisma migrations only. Do not use it for Vercel runtime traffic. |
 | `LLM_PROVIDER` | `google-ai-studio` |
 | `GOOGLE_AI_STUDIO_API_KEY` | Your Google AI Studio server-side API key. |
 | `NEXTAUTH_URL` | Local: `http://localhost:3001`. Preview: the exact HTTPS URL of that preview deployment, preferably as a branch-specific variable. Production: the canonical HTTPS URL, for example `https://your-domain.example`. |
@@ -157,11 +158,17 @@ Set this GitHub Actions repository secret:
 
 | Secret | Value to set |
 | --- | --- |
-| `DATABASE_URL` | The same Production Postgres connection string used by Vercel Production. It is used only by the `prisma migrate deploy` job after a successful push to `main`. |
+| `DATABASE_URL_UNPOOLED` | The direct Production Postgres connection string. It is used only by the `prisma migrate deploy` job after a successful push to `main`. |
 
 Do not create `VERCEL_URL` yourself; Vercel supplies it. Do not commit `.env`, `.env.local`, or any secret values. After adding or changing Vercel variables, redeploy because variables apply only to new deployments.
 
 Before calling the deployment complete, confirm on the Production URL that you can sign in, start a React track, submit a project, see the review, and unlock the next project.
+
+### Production operations
+
+The production build validates the environment before it runs: Google OAuth credentials, a 32-character-or-longer `NEXTAUTH_SECRET`, an HTTPS `NEXTAUTH_URL`, and a pooled, TLS-enabled Neon runtime URL are all required. A failed validation writes a safe `config.invalid` event to the Vercel build log; it lists only variable names and remediation, never values.
+
+Vercel Runtime Logs provide the baseline operational monitoring. Track `auth.google` and `auth.authorize` outcomes for sign-in failures; `request.complete` and `request.error` by operation for generation, review, and hint outcomes; and `ai.call` for provider latency, retry count, and failures. Reviews include a `verdict`, which supports completion-rate tracking. Every operational event includes a request ID where applicable. Learner code, files, API keys, passwords, and secrets are redacted before logging.
 
 Google OAuth callback URLs must use this exact format:
 

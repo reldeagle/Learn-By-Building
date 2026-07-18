@@ -184,7 +184,7 @@ describe("core learner loop", () => {
         method: "POST",
         body: JSON.stringify({
           projectId,
-          code: "export default function App() {}",
+          submission: { code: "export default function App() {}" },
         }),
       }),
     );

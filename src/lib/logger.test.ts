@@ -26,4 +26,20 @@ describe("request logging", () => {
       requestOperation: "review",
     });
   });
+
+  it("redacts learner code and credentials from structured logs", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    logEvent("request.complete", {
+      code: "const learnerSubmission = 'private';",
+      operation: "review",
+      password: "not-a-real-password",
+    });
+
+    const message = info.mock.calls[0]?.[0];
+    expect(message).toContain('"code":"[redacted]"');
+    expect(message).toContain('"password":"[redacted]"');
+    expect(message).not.toContain("learnerSubmission");
+    expect(message).not.toContain("not-a-real-password");
+  });
 });

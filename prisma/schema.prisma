@@ -103,3 +103,9 @@ model HintUnlock {
 
   @@unique([projectId, level])
 }
+
+model RateLimitBucket {
+  key         String   @id
+  windowStart DateTime
+  count       Int
+}

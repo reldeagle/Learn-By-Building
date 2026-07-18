@@ -5,6 +5,10 @@ import { useEffect, useState } from "react";
 import { ReviewActions } from "@/components/review-actions";
 import { ReviewFeedback } from "@/components/review-feedback";
 import { ReviewSchema, type Review } from "@/lib/schemas";
+import {
+  SubmissionPayloadSchema,
+  type SubmissionPayload,
+} from "@/lib/submission-files";
 
 function StreamedReview({ review }: { review: Review }) {
   const complete = review.verdict === "complete";
@@ -99,6 +103,26 @@ class ReviewStreamError extends Error {
   }
 }
 
+function readStoredSubmission(value: string): SubmissionPayload | null {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    const submission =
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "kind" in parsed &&
+      parsed.kind === "submission" &&
+      "submission" in parsed
+        ? parsed.submission
+        : { code: value };
+    const result = SubmissionPayloadSchema.safeParse(submission);
+
+    return result.success ? result.data : null;
+  } catch {
+    const result = SubmissionPayloadSchema.safeParse({ code: value });
+    return result.success ? result.data : null;
+  }
+}
+
 export function ReviewStream({
   projectId,
   trackId,
@@ -123,9 +147,12 @@ export function ReviewStream({
 
     async function submitForReview() {
       const storageKey = `learn-by-building:submission:${projectId}`;
-      const code = window.sessionStorage.getItem(storageKey);
+      const storedSubmission = window.sessionStorage.getItem(storageKey);
+      const submission = storedSubmission
+        ? readStoredSubmission(storedSubmission)
+        : null;
 
-      if (!code) {
+      if (!submission) {
         setError({
           message:
             "Your submission is no longer available. Return to the project and submit it again.",
@@ -138,7 +165,7 @@ export function ReviewStream({
         const response = await fetch("/api/review", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId, code }),
+          body: JSON.stringify({ projectId, submission }),
           signal: controller.signal,
         });
 

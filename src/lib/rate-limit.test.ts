@@ -1,13 +1,26 @@
-import { expect, it } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({ queryRaw: vi.fn() }));
+
+vi.mock("@/data/client", () => ({
+  prisma: { $queryRaw: mocks.queryRaw },
+}));
 
 import { enforceRateLimit, RateLimitError } from "./rate-limit";
 
-it("blocks the request after the configured per-user limit", () => {
-  const userId = `user-${Date.now()}`;
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    expect(() => enforceRateLimit(userId, "generation")).not.toThrow();
-  }
+it("blocks the request after the shared per-user limit", async () => {
+  mocks.queryRaw.mockResolvedValueOnce([{ count: 5 }]);
+  await expect(enforceRateLimit("user-1", "generation")).resolves.toBe(
+    undefined,
+  );
 
-  expect(() => enforceRateLimit(userId, "generation")).toThrow(RateLimitError);
+  mocks.queryRaw.mockResolvedValueOnce([{ count: 6 }]);
+  await expect(enforceRateLimit("user-1", "generation")).rejects.toThrow(
+    RateLimitError,
+  );
+  expect(mocks.queryRaw).toHaveBeenCalledTimes(2);
 });

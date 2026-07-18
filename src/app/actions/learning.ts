@@ -104,7 +104,7 @@ export async function startTrack(input: unknown): Promise<StartTrackResult> {
           return { ...existingTrack, status: "resumed" };
         }
 
-        enforceRateLimit(user.id, "generation");
+        await enforceRateLimit(user.id, "generation");
         const project = await generateProject(
           {
             technology: data.technology,
@@ -204,7 +204,7 @@ export async function requestNextProject(trackId: string) {
           throw new AppError("not_found", "Track not found.", 404);
         }
 
-        enforceRateLimit(user.id, "generation");
+        await enforceRateLimit(user.id, "generation");
         const activeProject = await projects.getActive(track.id);
 
         if (activeProject) {
@@ -273,7 +273,7 @@ export async function requestHint(projectId: string) {
         throw new AppError("not_found", "Project not found.", 404);
       }
 
-      enforceRateLimit(user.id, "hint");
+      await enforceRateLimit(user.id, "hint");
       const hintRepository = new HintRepository();
       const currentLevel = await hintRepository.getCurrentLevel(project.id);
       const hint = nextHint(toProjectDefinition(project), currentLevel);

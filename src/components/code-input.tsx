@@ -9,6 +9,7 @@ import {
   buildSubmissionCode,
   MAX_SUBMISSION_FILES,
   SubmissionDraftSchema,
+  type SubmissionPayload,
   type SubmissionFile,
   type SubmissionEditorLanguage,
   type SubmissionMode,
@@ -65,7 +66,11 @@ export function CodeInput({ projectId }: { projectId: string }) {
   const [mode, setMode] = useState<SubmissionMode>(initialDraft.mode);
   const [error, setError] = useState<string | null>(null);
 
-  const submittedCode = mode === "write" ? code : buildSubmissionCode(files);
+  const submission: SubmissionPayload = mode === "write" ? { code } : { files };
+  const submittedCode =
+    "files" in submission
+      ? buildSubmissionCode(submission.files)
+      : submission.code;
   const draftMessage =
     code || files.length
       ? initialDraft.restored
@@ -149,7 +154,7 @@ export function CodeInput({ projectId }: { projectId: string }) {
     try {
       window.sessionStorage.setItem(
         `learn-by-building:submission:${projectId}`,
-        submittedCode,
+        JSON.stringify({ kind: "submission", submission }),
       );
       router.push(`/project/${projectId}/review?submit=1`);
     } catch {

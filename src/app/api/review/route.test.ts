@@ -107,7 +107,7 @@ describe("POST /api/review", () => {
         method: "POST",
         body: JSON.stringify({
           projectId,
-          code: "export default function App() {}",
+          submission: { code: "export default function App() {}" },
         }),
       }),
     );
@@ -137,7 +137,7 @@ describe("POST /api/review", () => {
         method: "POST",
         body: JSON.stringify({
           projectId,
-          code: "export default function App() {}",
+          submission: { code: "export default function App() {}" },
         }),
       }),
     );
@@ -161,7 +161,7 @@ describe("POST /api/review", () => {
         method: "POST",
         body: JSON.stringify({
           projectId,
-          code: "export default function App() {}",
+          submission: { code: "export default function App() {}" },
         }),
       }),
     );
@@ -191,7 +191,7 @@ describe("POST /api/review", () => {
         method: "POST",
         body: JSON.stringify({
           projectId,
-          code: "export default function App() {}",
+          submission: { code: "export default function App() {}" },
         }),
       }),
     );
@@ -209,7 +209,7 @@ describe("POST /api/review", () => {
         method: "POST",
         body: JSON.stringify({
           projectId,
-          code: "export default function App() {}",
+          submission: { code: "export default function App() {}" },
         }),
       }),
     );
