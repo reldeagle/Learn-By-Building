@@ -42,7 +42,7 @@ This PRD defines the **lean MVP**: the smallest version that delivers the core l
 - **Primary:** Aspiring/early developers who have finished tutorials but can't yet build independently. They know *some* JavaScript and want to become someone who can build React apps.
 - **Secondary:** Self-taught developers filling gaps, and career-switchers who learn best by doing.
 
-**Assumed context:** learners write code in their own editor (VS Code, etc.) and paste or upload it back into the app. The MVP does **not** provide an in-app IDE.
+**Assumed context:** learners may write React code in a lightweight in-app text editor or in their own editor (VS Code, etc.), then paste or upload it for review. The MVP does **not** provide a full in-app IDE, code execution, or a sandbox.
 
 ---
 
@@ -50,8 +50,8 @@ This PRD defines the **lean MVP**: the smallest version that delivers the core l
 
 1. **Pick a skill.** Learner selects a technology (React in MVP). AI asks 1–2 calibration questions (prior JS experience; self-rated level: beginner / intermediate / experienced).
 2. **Generate the first project.** AI produces a small project (15–30 min) sized to the learner's level — e.g. Counter app.
-3. **Build it.** The learner sees goal, requirements, and expected outcome. Hints are available on demand but not shown by default. The learner writes code in their own editor.
-4. **Submit for review.** Learner pastes or uploads their code. AI reviews for correctness, bugs, readability, and best practices — **explaining** issues, not silently rewriting.
+3. **Build it.** The learner sees goal, requirements, and expected outcome. Hints are available on demand but not shown by default. The learner writes React code in a lightweight in-app editor or their own editor.
+4. **Submit for review.** Learner submits code written in-app, pasted, or uploaded. AI reviews for correctness, bugs, readability, and best practices — **explaining** issues, not silently rewriting.
 5. **Improve.** If incomplete, the AI points to what to fix (with the *why*). Learner resubmits. Loop until the project meets its requirements.
 6. **Unlock the next project.** On completion, the AI generates the next, slightly harder challenge. If the learner struggled, it generates another project targeting the *same* skill before advancing.
 
@@ -77,7 +77,8 @@ Each generated project includes:
 - Sized to be completable in ~15–30 minutes.
 
 ### 3. Code Submission & Review
-- Learner submits by **pasting** code or **uploading** file(s).
+- Learner submits code written in a lightweight React editor, **pasted** code, or **uploaded** file(s).
+- The in-app editor supports React JavaScript (JSX) and TypeScript (TSX) text editing only; it does not execute code or access a project filesystem.
 - AI review is **concise** and covers: correctness, bugs, readability, React best practices, simplification opportunities.
 - Review **explains** issues (with the *why*); it does **not** auto-rewrite unless the learner explicitly asks.
 - Review concludes with a clear verdict: **complete** (unlock next) or **needs work** (with prioritized fixes).
@@ -138,7 +139,7 @@ The mentor persona is the product. Requirements:
 
 ## Key Assumptions & Open Questions
 
-- Learners code in their own editor and paste/upload back. *(Assumption — validated by scope choice; revisit if drop-off at submission is high.)*
+- Learners can use the lightweight in-app React editor or their own editor, then paste/upload back. The in-app editor is intentionally limited to text editing; revisit its scope if it causes confusion or drop-off.
 - Requires user accounts to persist progress. *(Assumption for MVP — needed for "leave and return.")*
 - **Decision:** Google OAuth is the production sign-in method. Local development may use an isolated credentials provider for testing.
 - **Open:** How submissions are stored/retained and any privacy handling for pasted code.
@@ -149,5 +150,5 @@ The mentor persona is the product. Requirements:
 ## Phasing
 
 - **MVP (this doc):** Core loop, React only, hint system, progress persistence, project generator, code review.
-- **Fast-follow:** Focused coding challenges (Feature 5) if not in MVP; additional technologies; in-app editor; live code execution.
+- **Fast-follow:** Focused coding challenges (Feature 5) if not in MVP; additional technologies; full IDE features; live code execution.
 - **Later:** Monetization (freemium), analytics dashboards, multi-track learning, community.

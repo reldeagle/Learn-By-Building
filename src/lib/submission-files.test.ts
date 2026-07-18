@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { EDITOR_STARTERS } from "@/components/code-editor";
+
 import {
   buildSubmissionCode,
   MAX_SUBMISSION_FILES,
+  SubmissionDraftSchema,
   validateSubmissionFiles,
 } from "./submission-files";
 
@@ -47,5 +50,20 @@ describe("submission file helpers", () => {
         { name: "App.tsx", content: "a".repeat(100_000) },
       ]),
     ).toContain("combined");
+  });
+
+  it("defaults restored drafts to the TypeScript editor", () => {
+    expect(
+      SubmissionDraftSchema.parse({
+        code: "export default function App() {}",
+        files: [],
+        mode: "write",
+      }).language,
+    ).toBe("tsx");
+  });
+
+  it("provides a starter for both supported React syntaxes", () => {
+    expect(EDITOR_STARTERS.jsx).toContain("function App");
+    expect(EDITOR_STARTERS.tsx).toContain("function App");
   });
 });

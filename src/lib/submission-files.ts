@@ -23,6 +23,12 @@ export type SubmissionFile = {
 
 export type SubmissionMode = "write" | "files";
 
+export const SubmissionEditorLanguageSchema = z.enum(["jsx", "tsx"]);
+
+export type SubmissionEditorLanguage = z.infer<
+  typeof SubmissionEditorLanguageSchema
+>;
+
 const SubmissionFileSchema = z
   .object({
     name: z.string().trim().min(1),
@@ -34,6 +40,7 @@ export const SubmissionDraftSchema = z
   .object({
     code: z.string().max(MAX_SUBMISSION_CHARACTERS),
     files: z.array(SubmissionFileSchema).max(MAX_SUBMISSION_FILES),
+    language: SubmissionEditorLanguageSchema.optional().default("tsx"),
     mode: z.enum(["write", "files"]),
   })
   .strict();

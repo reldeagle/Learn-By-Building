@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { CodeEditor } from "@/components/code-editor";
 import { MAX_SUBMISSION_CHARACTERS } from "@/lib/schemas";
 import {
   buildSubmissionCode,
   MAX_SUBMISSION_FILES,
   SubmissionDraftSchema,
   type SubmissionFile,
+  type SubmissionEditorLanguage,
   type SubmissionMode,
   SUPPORTED_SUBMISSION_EXTENSIONS,
   validateSubmissionFiles,
@@ -22,6 +24,7 @@ function loadDraft(projectId: string) {
   const emptyDraft = {
     code: "",
     files: [] as SubmissionFile[],
+    language: "tsx" as SubmissionEditorLanguage,
     mode: "write" as SubmissionMode,
     restored: false,
   };
@@ -56,6 +59,9 @@ export function CodeInput({ projectId }: { projectId: string }) {
   const [initialDraft] = useState(() => loadDraft(projectId));
   const [code, setCode] = useState(initialDraft.code);
   const [files, setFiles] = useState<SubmissionFile[]>(initialDraft.files);
+  const [language, setLanguage] = useState<SubmissionEditorLanguage>(
+    initialDraft.language,
+  );
   const [mode, setMode] = useState<SubmissionMode>(initialDraft.mode);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,12 +82,12 @@ export function CodeInput({ projectId }: { projectId: string }) {
 
       window.localStorage.setItem(
         draftKey(projectId),
-        JSON.stringify({ code, files, mode }),
+        JSON.stringify({ code, files, language, mode }),
       );
     } catch {
       // A local draft is a convenience; submission still works if storage is unavailable.
     }
-  }, [code, files, mode, projectId]);
+  }, [code, files, language, mode, projectId]);
 
   async function addFiles(selectedFiles: File[]) {
     if (!selectedFiles.length) {
@@ -127,6 +133,7 @@ export function CodeInput({ projectId }: { projectId: string }) {
   function discardDraft() {
     setCode("");
     setFiles([]);
+    setLanguage("tsx");
     setError(null);
     window.localStorage.removeItem(draftKey(projectId));
   }
@@ -210,16 +217,14 @@ export function CodeInput({ projectId }: { projectId: string }) {
       </div>
 
       {mode === "write" ? (
-        <textarea
-          className="mt-5 min-h-72 w-full rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-600 focus:border-cyan-300"
-          maxLength={MAX_SUBMISSION_CHARACTERS}
-          onChange={(event) => {
+        <CodeEditor
+          code={code}
+          language={language}
+          onChange={(nextCode) => {
             setError(null);
-            setCode(event.target.value);
+            setCode(nextCode);
           }}
-          placeholder="Paste the code you want your mentor to review."
-          spellCheck={false}
-          value={code}
+          onLanguageChange={setLanguage}
         />
       ) : (
         <div className="mt-5">
