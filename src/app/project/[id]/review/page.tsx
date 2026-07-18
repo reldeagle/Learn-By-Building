@@ -42,14 +42,21 @@ export default async function ReviewPage({
   return (
     <main className="min-h-full flex-1 bg-slate-950 px-6 py-10 text-slate-100 sm:py-16">
       <div className="mx-auto w-full max-w-3xl">
+        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-cyan-300">
+          React track · Project {project.order} · Mentor review
+        </p>
         {submit === "1" ? (
-          <ReviewStream projectId={project.id} trackId={project.track.id} />
+          <div className="mt-6">
+            <ReviewStream projectId={project.id} trackId={project.track.id} />
+          </div>
         ) : (
-          <PersistedReview
-            projectId={project.id}
-            trackId={project.track.id}
-            userId={user.id}
-          />
+          <div className="mt-6">
+            <PersistedReview
+              projectId={project.id}
+              trackId={project.track.id}
+              userId={user.id}
+            />
+          </div>
         )}
       </div>
     </main>

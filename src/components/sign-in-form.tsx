@@ -40,27 +40,38 @@ export function SignInForm({
     setError(null);
     setIsSubmitting(true);
 
-    const result = await signIn("credentials", {
-      callbackUrl,
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        callbackUrl,
+        email,
+        password,
+        redirect: false,
+      });
 
-    if (!result?.ok) {
-      setError(errorMessage(result?.error ?? undefined));
+      if (!result?.ok) {
+        setError(errorMessage(result?.error ?? undefined));
+        setIsSubmitting(false);
+        return;
+      }
+
+      router.replace(callbackUrl);
+      router.refresh();
+    } catch {
+      setError("We could not complete sign-in. Please try again.");
       setIsSubmitting(false);
-      return;
     }
-
-    router.replace(callbackUrl);
-    router.refresh();
   }
 
-  function submitGoogle() {
+  async function submitGoogle() {
     setError(null);
     setIsSubmitting(true);
-    void signIn("google", { callbackUrl });
+
+    try {
+      await signIn("google", { callbackUrl });
+    } catch {
+      setError("We could not complete sign-in. Please try again.");
+      setIsSubmitting(false);
+    }
   }
 
   if (!googleEnabled && !developmentCredentialsEnabled) {
@@ -77,7 +88,7 @@ export function SignInForm({
         <button
           className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={isSubmitting}
-          onClick={submitGoogle}
+          onClick={() => void submitGoogle()}
           type="button"
         >
           <span
@@ -136,7 +147,7 @@ export function SignInForm({
       ) : null}
 
       {error ? (
-        <p aria-live="polite" className="text-sm text-rose-300">
+        <p aria-live="assertive" className="text-sm text-rose-300" role="alert">
           {error}
         </p>
       ) : null}

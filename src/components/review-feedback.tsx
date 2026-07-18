@@ -57,7 +57,11 @@ export function ReviewFeedback({
           Thumbs down
         </button>
       </div>
-      {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
+      {error ? (
+        <p className="mt-3 text-sm text-rose-300" role="alert">
+          {error}
+        </p>
+      ) : null}
     </section>
   );
 }

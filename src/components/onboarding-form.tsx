@@ -96,6 +96,10 @@ export function OnboardingForm({ userEmail }: { userEmail: string }) {
         <legend className="text-sm font-medium text-slate-100">
           Choose a technology
         </legend>
+        <p className="mt-1 text-sm text-slate-400">
+          React is the focused starting track. More technologies unlock in a
+          future release.
+        </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <button
             aria-pressed="true"
@@ -114,6 +118,9 @@ export function OnboardingForm({ userEmail }: { userEmail: string }) {
           >
             <span className="block font-medium text-slate-300">TypeScript</span>
             <span className="mt-1 block text-sm text-slate-500">Locked</span>
+            <span className="mt-2 block text-xs leading-5 text-slate-500">
+              Available after the React track is established.
+            </span>
           </button>
           <button
             className="cursor-not-allowed rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-4 text-left opacity-60"
@@ -122,6 +129,9 @@ export function OnboardingForm({ userEmail }: { userEmail: string }) {
           >
             <span className="block font-medium text-slate-300">Node.js</span>
             <span className="mt-1 block text-sm text-slate-500">Locked</span>
+            <span className="mt-2 block text-xs leading-5 text-slate-500">
+              Available after the React track is established.
+            </span>
           </button>
         </div>
       </fieldset>
@@ -169,7 +179,7 @@ export function OnboardingForm({ userEmail }: { userEmail: string }) {
       </fieldset>
 
       {error ? (
-        <p aria-live="polite" className="text-sm text-rose-300">
+        <p aria-live="assertive" className="text-sm text-rose-300" role="alert">
           {error}
           {needsSignIn ? (
             <>

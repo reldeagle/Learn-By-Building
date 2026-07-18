@@ -45,7 +45,12 @@ export function HintControl({
   if (hasSolution) {
     return (
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-        <p className="text-sm font-medium text-slate-100">Hints</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-medium text-slate-100">Hints</p>
+          <p className="text-xs text-slate-400">
+            {revealed.length} of {hints.length} revealed
+          </p>
+        </div>
         <div className="mt-3 space-y-3">
           {revealed.map((hint) => (
             <p
@@ -66,7 +71,8 @@ export function HintControl({
         <div>
           <p className="text-sm font-medium text-slate-100">Need a nudge?</p>
           <p className="mt-1 text-sm text-slate-400">
-            Hints reveal one step at a time.
+            Hints reveal one step at a time. {revealed.length} of {hints.length}{" "}
+            revealed.
           </p>
         </div>
         <button
@@ -94,7 +100,11 @@ export function HintControl({
           ))}
         </div>
       ) : null}
-      {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
+      {error ? (
+        <p className="mt-3 text-sm text-rose-300" role="alert">
+          {error}
+        </p>
+      ) : null}
     </section>
   );
 }

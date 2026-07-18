@@ -319,6 +319,12 @@ export function ReviewStream({
             Retry review
           </button>
         ) : null}
+        <a
+          className="mt-5 inline-flex rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500"
+          href={`/project/${projectId}`}
+        >
+          Return to project
+        </a>
       </section>
     );
   }
