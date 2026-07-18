@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+export class ConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConfigurationError";
+  }
+}
+
 const envSchema = z
   .object({
     DATABASE_URL: z.string().min(1),
@@ -34,7 +41,9 @@ export function getConfig(): AppConfig {
       .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
       .join("; ");
 
-    throw new Error(`Invalid environment configuration: ${details}`);
+    throw new ConfigurationError(
+      `Invalid environment configuration: ${details}`,
+    );
   }
 
   return result.data;

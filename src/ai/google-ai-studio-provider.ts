@@ -131,6 +131,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
     const startedAt = Date.now();
     let retries = 0;
     let outputCharacters = 0;
+    let outcome: "success" | "error" = "error";
 
     try {
       const initial = await this.withRetry(() => this.generateContent(request));
@@ -139,12 +140,14 @@ export class GoogleAIStudioProvider implements LLMProvider {
       const responseText = initial.value;
 
       if (!request.schema) {
+        outcome = "success";
         return responseText as T;
       }
 
       const parsed = this.parseStructuredResponse(responseText, request.schema);
 
       if (parsed) {
+        outcome = "success";
         return parsed;
       }
 
@@ -178,7 +181,15 @@ export class GoogleAIStudioProvider implements LLMProvider {
         );
       }
 
+      outcome = "success";
       return repaired;
+    } catch (error) {
+      logEvent("ai.error", {
+        provider: "google-ai-studio",
+        operation: "complete",
+        retryable: error instanceof AIServiceError ? error.retryable : false,
+      });
+      throw error;
     } finally {
       logEvent("ai.call", {
         provider: "google-ai-studio",
@@ -186,6 +197,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
         latencyMs: Date.now() - startedAt,
         retries,
         estimatedOutputTokens: Math.ceil(outputCharacters / 4),
+        outcome,
       });
     }
   }
@@ -193,20 +205,25 @@ export class GoogleAIStudioProvider implements LLMProvider {
   async *stream(request: CompletionRequest<string>): AsyncIterable<string> {
     const startedAt = Date.now();
     let outputCharacters = 0;
-    const streamResponse = await this.withRetry(() =>
-      this.fetchResponse(this.streamUrl(), request, "text/event-stream"),
-    );
-    const response = streamResponse.value;
-
-    if (!response.body) {
-      throw new AIServiceError("Google AI Studio returned an empty stream.");
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+    let retries = 0;
+    let outcome: "success" | "error" = "error";
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 
     try {
+      const streamResponse = await this.withRetry(() =>
+        this.fetchResponse(this.streamUrl(), request, "text/event-stream"),
+      );
+      retries = streamResponse.retries;
+      const response = streamResponse.value;
+
+      if (!response.body) {
+        throw new AIServiceError("Google AI Studio returned an empty stream.");
+      }
+
+      reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
       while (true) {
         const { done, value } = await this.readStreamChunk(reader, request);
 
@@ -234,15 +251,26 @@ export class GoogleAIStudioProvider implements LLMProvider {
         outputCharacters += text.length;
         yield text;
       }
+      outcome = "success";
+    } catch (error) {
+      logEvent("ai.error", {
+        provider: "google-ai-studio",
+        operation: "stream",
+        retryable: error instanceof AIServiceError ? error.retryable : false,
+      });
+      throw error;
     } finally {
-      await reader.cancel();
-      reader.releaseLock();
+      if (reader) {
+        await reader.cancel();
+        reader.releaseLock();
+      }
       logEvent("ai.call", {
         provider: "google-ai-studio",
         operation: "stream",
         latencyMs: Date.now() - startedAt,
-        retries: streamResponse.retries,
+        retries,
         estimatedOutputTokens: Math.ceil(outputCharacters / 4),
+        outcome,
       });
     }
   }
