@@ -254,7 +254,7 @@ export class SubmissionRepository {
 
 export class ReviewRepository {
   async saveReviewAndUpdateProject({
-    submissionId,
+    code,
     projectId,
     trackId,
     verdict,
@@ -262,7 +262,7 @@ export class ReviewRepository {
     feedback,
     difficultyDelta,
   }: {
-    submissionId: string;
+    code: string;
     projectId: string;
     trackId: string;
     verdict: ReviewVerdict;
@@ -280,6 +280,18 @@ export class ReviewRepository {
         return null;
       }
 
+      const latestSubmission = await transaction.submission.aggregate({
+        where: { projectId },
+        _max: { attempt: true },
+      });
+      const submission = await transaction.submission.create({
+        data: {
+          projectId,
+          code,
+          attempt: (latestSubmission._max.attempt ?? 0) + 1,
+        },
+      });
+
       if (verdict === ReviewVerdict.complete) {
         const completed = await transaction.project.updateMany({
           where: { id: projectId, status: ProjectStatus.active },
@@ -293,7 +305,7 @@ export class ReviewRepository {
 
       const review = await transaction.review.create({
         data: {
-          submissionId,
+          submissionId: submission.id,
           verdict,
           requirementStatus: requirementStatus as Prisma.InputJsonValue,
           feedback,

@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 
 import { ReviewActions } from "@/components/review-actions";
 import { ReviewFeedback } from "@/components/review-feedback";
+import {
+  FeedbackItem,
+  RequirementRow,
+  VerdictBanner,
+} from "@/components/project-ui";
 import { ReviewSchema, type Review } from "@/lib/schemas";
 import {
   SubmissionPayloadSchema,
@@ -11,28 +16,9 @@ import {
 } from "@/lib/submission-files";
 
 function StreamedReview({ review }: { review: Review }) {
-  const complete = review.verdict === "complete";
-
   return (
     <div className="space-y-8">
-      <section
-        className={`rounded-2xl border p-6 ${
-          complete
-            ? "border-emerald-400/25 bg-emerald-400/10"
-            : "border-amber-400/25 bg-amber-400/10"
-        }`}
-      >
-        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-300">
-          Review result
-        </p>
-        <h1
-          className={`mt-3 text-2xl font-semibold tracking-tight ${
-            complete ? "text-emerald-200" : "text-amber-200"
-          }`}
-        >
-          {complete ? "Project complete" : "A few things to improve"}
-        </h1>
-      </section>
+      <VerdictBanner verdict={review.verdict} />
 
       <section>
         <h2 className="text-lg font-semibold tracking-tight text-slate-100">
@@ -40,19 +26,12 @@ function StreamedReview({ review }: { review: Review }) {
         </h2>
         <ul className="mt-4 space-y-3">
           {review.requirementStatus.map((status) => (
-            <li
-              className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-3"
+            <RequirementRow
               key={status.requirement}
-            >
-              <p className="font-medium text-slate-100">{status.requirement}</p>
-              <p
-                className={`mt-1 text-sm ${
-                  status.met ? "text-emerald-300" : "text-slate-400"
-                }`}
-              >
-                {status.met ? "Met" : "Needs attention"} — {status.reason}
-              </p>
-            </li>
+              met={status.met}
+              reason={status.reason}
+              text={status.requirement}
+            />
           ))}
         </ul>
       </section>
@@ -63,29 +42,13 @@ function StreamedReview({ review }: { review: Review }) {
             Mentor feedback
           </h2>
           <ul className="mt-4 space-y-3">
-            {review.feedback.map((item, index) => (
-              <li
-                className="rounded-xl border border-slate-800 bg-slate-900 p-5"
-                key={`${item.issue}-${index}`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <h3 className="font-medium text-slate-100">{item.issue}</h3>
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
-                      item.priority === "high"
-                        ? "bg-rose-400/15 text-rose-200"
-                        : item.priority === "medium"
-                          ? "bg-amber-400/15 text-amber-200"
-                          : "bg-slate-800 text-slate-300"
-                    }`}
-                  >
-                    {item.priority}
-                  </span>
-                </div>
-                <p className="mt-3 text-sm leading-6 text-slate-300">
-                  {item.why}
-                </p>
-              </li>
+          {review.feedback.map((item, index) => (
+            <FeedbackItem
+              issue={item.issue}
+              key={`${item.issue}-${index}`}
+              priority={item.priority}
+              why={item.why}
+            />
             ))}
           </ul>
         </section>

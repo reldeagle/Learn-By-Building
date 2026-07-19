@@ -245,6 +245,21 @@ describe("requestNextProject", () => {
     await expect(
       requestNextProject("ckv8fth7w0000l08l4v1l7q4v"),
     ).rejects.toThrow("Track not found.");
+    expect(mocks.enforceRateLimit).not.toHaveBeenCalled();
+  });
+
+  it("does not consume generation capacity while a project is active", async () => {
+    mocks.getByIdForUser.mockResolvedValue({
+      id: "track-1",
+      technology: "react",
+      currentLevel: 2,
+    });
+    mocks.getActive.mockResolvedValue({ id: "project-1" });
+
+    await expect(
+      requestNextProject("ckv8fth7w0000l08l4v1l7q4v"),
+    ).rejects.toThrow("Complete the active project");
+    expect(mocks.enforceRateLimit).not.toHaveBeenCalled();
   });
 });
 

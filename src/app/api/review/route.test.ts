@@ -117,7 +117,7 @@ describe("POST /api/review", () => {
     await expect(response.text()).resolves.toContain("event: progress");
     expect(mocks.saveReviewAndUpdateProject).toHaveBeenCalledWith(
       expect.objectContaining({
-        submissionId: "submission-1",
+        code: "export default function App() {}",
         projectId: "project-1",
         trackId: "track-1",
         difficultyDelta: 1,
@@ -144,6 +144,7 @@ describe("POST /api/review", () => {
 
     expect(response.status).toBe(404);
     expect(mocks.saveSubmission).not.toHaveBeenCalled();
+    expect(mocks.enforceRateLimit).not.toHaveBeenCalled();
     expect(mocks.logEvent).toHaveBeenCalledWith(
       "request.rejected",
       expect.objectContaining({ code: "not_found" }),
@@ -168,6 +169,7 @@ describe("POST /api/review", () => {
 
     expect(response.status).toBe(409);
     expect(mocks.saveSubmission).not.toHaveBeenCalled();
+    expect(mocks.enforceRateLimit).not.toHaveBeenCalled();
   });
 
   it("rejects an oversized request before parsing it", async () => {

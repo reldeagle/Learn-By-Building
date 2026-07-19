@@ -204,7 +204,6 @@ export async function requestNextProject(trackId: string) {
           throw new AppError("not_found", "Track not found.", 404);
         }
 
-        await enforceRateLimit(user.id, "generation");
         const activeProject = await projects.getActive(track.id);
 
         if (activeProject) {
@@ -215,6 +214,7 @@ export async function requestNextProject(trackId: string) {
           );
         }
 
+        await enforceRateLimit(user.id, "generation");
         const completedProjects = await projects.getCompletedTitles(track.id);
         const context = LearnerContextSchema.parse({
           technology: track.technology,

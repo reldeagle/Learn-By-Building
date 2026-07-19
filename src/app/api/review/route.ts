@@ -7,7 +7,6 @@ import { createLLMProvider } from "@/ai/provider";
 import {
   ProjectRepository,
   ReviewRepository,
-  SubmissionRepository,
 } from "@/data/repositories";
 import { reviewSubmission } from "@/modules/code-review";
 import { evaluateProgress } from "@/modules/progression";
@@ -151,7 +150,6 @@ export async function POST(request: Request) {
       }
       projectId = input.data.projectId;
 
-      await enforceRateLimit(user.id, "review");
       const code = codeForSubmission(input.data.submission);
 
       const projects = new ProjectRepository();
@@ -185,6 +183,7 @@ export async function POST(request: Request) {
         );
       }
 
+      await enforceRateLimit(user.id, "review");
       const provider = createLLMProvider();
       const projectDefinition = toProjectDefinition(project);
 
@@ -208,15 +207,9 @@ export async function POST(request: Request) {
                 { currentLevel: project.track.currentLevel },
                 review,
               );
-              const submission =
-                await new SubmissionRepository().saveSubmission(
-                  project.id,
-                  code,
-                );
-
               const savedReview =
                 await new ReviewRepository().saveReviewAndUpdateProject({
-                  submissionId: submission.id,
+                  code,
                   projectId: project.id,
                   trackId: project.track.id,
                   verdict:

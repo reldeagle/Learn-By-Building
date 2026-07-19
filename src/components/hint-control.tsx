@@ -18,6 +18,7 @@ export function HintControl({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const hasSolution = revealed.some((hint) => hint.isSolution);
+  const hasSolutionHint = hints.some((hint) => hint.isSolution);
   const regularHintCount = useMemo(
     () => hints.filter((hint) => !hint.isSolution).length,
     [hints],
@@ -40,6 +41,10 @@ export function HintControl({
         setError("Unable to reveal a hint right now.");
       }
     });
+  }
+
+  if (!hints.length) {
+    return null;
   }
 
   if (hasSolution) {
@@ -75,18 +80,20 @@ export function HintControl({
             revealed.
           </p>
         </div>
-        <button
-          className="shrink-0 rounded-xl border border-slate-700 px-3 py-2 text-sm font-medium text-cyan-300 transition hover:border-cyan-300/60 disabled:opacity-60"
-          disabled={isPending}
-          onClick={revealHint}
-          type="button"
-        >
-          {isPending
-            ? "Revealing…"
-            : revealedRegularHints >= regularHintCount
-              ? "Show solution"
-              : "Show a hint"}
-        </button>
+        {revealedRegularHints < regularHintCount || hasSolutionHint ? (
+          <button
+            className="shrink-0 rounded-xl border border-slate-700 px-3 py-2 text-sm font-medium text-cyan-300 transition hover:border-cyan-300/60 disabled:opacity-60"
+            disabled={isPending}
+            onClick={revealHint}
+            type="button"
+          >
+            {isPending
+              ? "Revealing…"
+              : revealedRegularHints >= regularHintCount
+                ? "Show solution"
+                : "Show a hint"}
+          </button>
+        ) : null}
       </div>
       {revealed.length ? (
         <div className="mt-4 space-y-3">
