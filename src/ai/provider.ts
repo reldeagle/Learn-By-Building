@@ -13,5 +13,8 @@ export function createLLMProvider(): LLMProvider {
     return new FakeProvider();
   }
 
-  return new GoogleAIStudioProvider(config.GOOGLE_AI_STUDIO_API_KEY!);
+  return new GoogleAIStudioProvider(
+    config.GOOGLE_AI_STUDIO_API_KEY!,
+    config.LLM_MODEL,
+  );
 }

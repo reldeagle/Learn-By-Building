@@ -27,6 +27,23 @@ describe("configuration", () => {
     ).toThrow(ConfigurationError);
   });
 
+  it("allows an optional model override while leaving the default unset", () => {
+    expect(
+      getConfig({
+        DATABASE_URL: "postgresql://user:password@host/db",
+        LLM_MODEL: "gemini-2.5-flash-lite",
+        LLM_PROVIDER: "fake",
+      }).LLM_MODEL,
+    ).toBe("gemini-2.5-flash-lite");
+
+    expect(
+      getConfig({
+        DATABASE_URL: "postgresql://user:password@host/db",
+        LLM_PROVIDER: "fake",
+      }).LLM_MODEL,
+    ).toBeUndefined();
+  });
+
   it("accepts a production-ready Neon configuration without logging secrets", () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
 

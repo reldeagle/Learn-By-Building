@@ -18,6 +18,8 @@ export class AIServiceError extends Error {
   constructor(
     message: string,
     readonly retryable = false,
+    readonly providerStatus?: number,
+    readonly providerCause?: string,
   ) {
     super(message);
     this.name = "AIServiceError";

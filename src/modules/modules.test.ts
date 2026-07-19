@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { FakeProvider } from "../ai/fake-provider";
 import { ProjectSchema, type Review } from "../lib/schemas";
-import { reviewSubmission } from "./code-review";
+import { createReviewRequest, reviewSubmission } from "./code-review";
 import { nextHint } from "./hint-system";
 import { evaluateProgress } from "./progression";
 import { generateProject } from "./project-generator";
@@ -33,9 +33,28 @@ describe("generateProject", () => {
 
     expect(result).toEqual(project);
   });
+
+  it("allocates enough output tokens for a complete project and hint set", async () => {
+    const complete = vi.fn(async (request) => request.schema!.parse(project));
+
+    await generateProject(
+      { technology: "react", currentLevel: 1, completedProjects: [] },
+      { complete, async *stream() {} },
+    );
+
+    expect(complete).toHaveBeenCalledWith(
+      expect.objectContaining({ maxTokens: 3_000 }),
+    );
+  });
 });
 
 describe("reviewSubmission", () => {
+  it("allocates enough output tokens for requirement-level feedback", () => {
+    expect(createReviewRequest(project, "export default function App() {}")).toMatchObject({
+      maxTokens: 2_000,
+    });
+  });
+
   it("returns complete only when every requirement is met", async () => {
     const result = await reviewSubmission(
       project,

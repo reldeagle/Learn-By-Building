@@ -31,7 +31,7 @@ export function createReviewRequest(
       },
     ],
     schema: createReviewEvaluationSchema(project.requirements.length),
-    maxTokens: 1_200,
+    maxTokens: 2_000,
     temperature: 0.2,
   };
 }

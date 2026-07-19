@@ -18,6 +18,8 @@ import { getSignInUrl } from "@/lib/auth-redirect";
 import { UnauthorizedError, requireUser } from "@/lib/auth";
 import { ReviewSchema } from "@/lib/schemas";
 
+export const maxDuration = 60;
+
 export default async function ReviewPage({
   params,
   searchParams,

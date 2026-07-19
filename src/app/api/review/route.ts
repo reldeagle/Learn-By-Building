@@ -27,6 +27,9 @@ import {
 
 const encoder = new TextEncoder();
 const MAX_REVIEW_REQUEST_BYTES = MAX_SUBMISSION_CHARACTERS * 4 + 4_096;
+const REVIEW_HEARTBEAT_MS = 10_000;
+
+export const maxDuration = 60;
 
 function event(name: string, data: unknown) {
   return encoder.encode(`event: ${name}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -189,6 +192,14 @@ export async function POST(request: Request) {
 
       const stream = new ReadableStream({
         async start(controller) {
+          const heartbeat = setInterval(() => {
+            controller.enqueue(
+              event("progress", {
+                message: "Still reviewing your submission",
+              }),
+            );
+          }, REVIEW_HEARTBEAT_MS);
+
           await withRequestLogContext(logContext, async () => {
             try {
               controller.enqueue(
@@ -255,6 +266,7 @@ export async function POST(request: Request) {
                 }),
               );
             } finally {
+              clearInterval(heartbeat);
               controller.close();
             }
           });

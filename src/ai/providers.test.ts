@@ -7,7 +7,7 @@ import { GoogleAIStudioProvider } from "./google-ai-studio-provider";
 import type { CompletionRequest } from "./llm-provider";
 import { mentorSystemPrompt } from "./prompts/mentor-v1";
 import { createLLMProvider } from "./provider";
-import { ProjectSchema } from "../lib/schemas";
+import { createReviewEvaluationSchema, ProjectSchema } from "../lib/schemas";
 import { generateProject } from "../modules/project-generator";
 import { reviewSubmission } from "../modules/code-review";
 
@@ -97,6 +97,7 @@ describe("GoogleAIStudioProvider.complete", () => {
     const body = JSON.parse(request?.body as string);
     expect(body.generationConfig.responseMimeType).toBe("application/json");
     expect(body.generationConfig.maxOutputTokens).toBe(256);
+    expect(body.generationConfig.thinkingConfig).toEqual({ thinkingBudget: 0 });
     expect(
       body.generationConfig.responseJsonSchema.properties.title,
     ).not.toHaveProperty("minLength");
@@ -113,6 +114,52 @@ describe("GoogleAIStudioProvider.complete", () => {
       new GoogleAIStudioProvider("test-key").complete(structuredRequest),
     ).resolves.toEqual(project);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("includes concrete schema issues in the structured-output repair request", async () => {
+    const invalidReview = JSON.stringify({
+      requirementStatus: [
+        {
+          requirementIndex: 0,
+          met: true,
+          reason: "Implemented.",
+        },
+      ],
+      feedback: [],
+    });
+    const validReview = JSON.stringify({
+      requirementStatus: [
+        {
+          requirementIndex: 0,
+          met: true,
+          reason: "Implemented.",
+        },
+        {
+          requirementIndex: 1,
+          met: true,
+          reason: "Implemented.",
+        },
+      ],
+      feedback: [],
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(geminiResponse(invalidReview))
+      .mockResolvedValueOnce(geminiResponse(validReview));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new GoogleAIStudioProvider("test-key").complete({
+      ...structuredRequest,
+      schema: createReviewEvaluationSchema(2),
+    });
+
+    const [, repairRequest] = fetchMock.mock.calls[1];
+    const repairBody = JSON.parse(repairRequest?.body as string);
+    const repairPrompt = repairBody.contents.at(-1).parts[0].text;
+
+    expect(repairPrompt).toContain(
+      "Every project requirement must be evaluated exactly once.",
+    );
   });
 
   it("retries a timed-out request once before failing", async () => {
@@ -133,6 +180,59 @@ describe("GoogleAIStudioProvider.complete", () => {
       }),
     ).rejects.toThrow("timed out");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("logs the Gemini status and reason without exposing the API key", async () => {
+    const providerReason = "API key not valid. Please pass a valid API key.";
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: { message: providerReason } }), {
+            status: 401,
+          }),
+        ),
+      ),
+    );
+
+    await expect(
+      new GoogleAIStudioProvider("test-key").complete(structuredRequest),
+    ).rejects.toThrow(`HTTP 401): ${providerReason}`);
+
+    const errorLog = info.mock.calls
+      .map(([message]) => JSON.parse(message as string))
+      .find((event) => event.event === "ai.error");
+
+    expect(errorLog).toMatchObject({
+      event: "ai.error",
+      status: 401,
+      cause: providerReason,
+    });
+    expect(JSON.stringify(errorLog)).not.toContain("test-key");
+  });
+
+  it("logs a schema issue summary without logging the model response", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(geminiResponse('{"title":"Counter app"}'))),
+    );
+
+    await expect(
+      new GoogleAIStudioProvider("test-key").complete(structuredRequest),
+    ).rejects.toThrow("invalid structured response");
+
+    const structuredOutputLog = info.mock.calls
+      .map(([message]) => JSON.parse(message as string))
+      .find((event) => event.event === "ai.structured_output_invalid");
+
+    expect(structuredOutputLog).toMatchObject({
+      event: "ai.structured_output_invalid",
+      cause: "schema_validation",
+    });
+    expect(structuredOutputLog.issues).toContain("invalid_type:goal");
+    expect(JSON.stringify(structuredOutputLog)).not.toContain("Counter app");
   });
 });
 
@@ -181,6 +281,24 @@ describe("createLLMProvider", () => {
     vi.stubEnv("LLM_PROVIDER", "google-ai-studio");
     vi.stubEnv("GOOGLE_AI_STUDIO_API_KEY", "test-key");
     expect(createLLMProvider()).toBeInstanceOf(GoogleAIStudioProvider);
+  });
+
+  it("passes the configured model to Google AI Studio", async () => {
+    const fetchMock = vi.fn<(input: RequestInfo | URL) => Promise<Response>>(
+      () =>
+      Promise.resolve(geminiResponse(JSON.stringify(project))),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("DATABASE_URL", "postgresql://user:password@localhost:5432/app");
+    vi.stubEnv("GOOGLE_AI_STUDIO_API_KEY", "test-key");
+    vi.stubEnv("LLM_MODEL", "gemini-2.5-flash-lite");
+    vi.stubEnv("LLM_PROVIDER", "google-ai-studio");
+
+    await createLLMProvider().complete(structuredRequest);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toContain(
+      "/gemini-2.5-flash-lite:generateContent",
+    );
   });
 });
 

@@ -13,6 +13,8 @@ const API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_ATTEMPTS = 2;
 const RETRY_DELAY_MS = 100;
+const MAX_PROVIDER_ERROR_LENGTH = 500;
+const DEFAULT_MODEL = "gemini-2.5-flash";
 const supportedJsonSchemaKeys = new Set([
   "$id",
   "$defs",
@@ -50,6 +52,14 @@ const GeminiResponseSchema = z.object({
           .optional(),
       }),
     )
+    .optional(),
+});
+
+const GeminiErrorSchema = z.object({
+  error: z
+    .object({
+      message: z.string().optional(),
+    })
     .optional(),
 });
 
@@ -121,10 +131,31 @@ function extractText(payload: unknown) {
   );
 }
 
+function summarizeIssues(error: z.ZodError) {
+  return error.issues
+    .slice(0, 3)
+    .map((issue) => `${issue.code}:${issue.path.join(".") || "root"}`)
+    .join(",");
+}
+
+function repairInstructions(error: z.ZodError) {
+  return error.issues
+    .slice(0, 3)
+    .map(
+      (issue) =>
+        `- ${issue.path.join(".") || "root"}: ${issue.message}`,
+    )
+    .join("\n");
+}
+
+type StructuredResponse<T> =
+  | { data: T; success: true }
+  | { repairInstructions: string; success: false };
+
 export class GoogleAIStudioProvider implements LLMProvider {
   constructor(
     private readonly apiKey: string,
-    private readonly model = "gemini-2.5-flash",
+    private readonly model = DEFAULT_MODEL,
   ) {}
 
   async complete<T>(request: CompletionRequest<T>): Promise<T> {
@@ -146,9 +177,9 @@ export class GoogleAIStudioProvider implements LLMProvider {
 
       const parsed = this.parseStructuredResponse(responseText, request.schema);
 
-      if (parsed) {
+      if (parsed.success) {
         outcome = "success";
-        return parsed;
+        return parsed.data;
       }
 
       const repairedResponse = await this.withRetry(() =>
@@ -161,6 +192,8 @@ export class GoogleAIStudioProvider implements LLMProvider {
               content: [
                 "Your previous response did not match the required JSON schema.",
                 "Return only a corrected JSON response that satisfies the schema.",
+                "Validation issues to correct:",
+                parsed.repairInstructions,
                 "Previous response:",
                 responseText,
               ].join("\n"),
@@ -175,25 +208,35 @@ export class GoogleAIStudioProvider implements LLMProvider {
         request.schema,
       );
 
-      if (!repaired) {
+      if (!repaired.success) {
         throw new AIServiceError(
           "Google AI Studio returned an invalid structured response.",
+          false,
+          undefined,
+          "invalid_structured_output",
         );
       }
 
       outcome = "success";
-      return repaired;
+      return repaired.data;
     } catch (error) {
       logEvent("ai.error", {
         provider: "google-ai-studio",
         operation: "complete",
+        model: this.model,
         retryable: error instanceof AIServiceError ? error.retryable : false,
+        status: error instanceof AIServiceError ? error.providerStatus ?? null : null,
+        cause:
+          error instanceof AIServiceError
+            ? error.providerCause ?? "unknown"
+            : "unexpected",
       });
       throw error;
     } finally {
       logEvent("ai.call", {
         provider: "google-ai-studio",
         operation: "complete",
+        model: this.model,
         latencyMs: Date.now() - startedAt,
         retries,
         estimatedOutputTokens: Math.ceil(outputCharacters / 4),
@@ -256,7 +299,13 @@ export class GoogleAIStudioProvider implements LLMProvider {
       logEvent("ai.error", {
         provider: "google-ai-studio",
         operation: "stream",
+        model: this.model,
         retryable: error instanceof AIServiceError ? error.retryable : false,
+        status: error instanceof AIServiceError ? error.providerStatus ?? null : null,
+        cause:
+          error instanceof AIServiceError
+            ? error.providerCause ?? "unknown"
+            : "unexpected",
       });
       throw error;
     } finally {
@@ -267,6 +316,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
       logEvent("ai.call", {
         provider: "google-ai-studio",
         operation: "stream",
+        model: this.model,
         latencyMs: Date.now() - startedAt,
         retries,
         estimatedOutputTokens: Math.ceil(outputCharacters / 4),
@@ -317,6 +367,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
           contents: toGeminiContents(request.messages),
           generationConfig: {
             maxOutputTokens: request.maxTokens,
+            thinkingConfig: { thinkingBudget: 0 },
             ...(request.temperature === undefined
               ? {}
               : { temperature: request.temperature }),
@@ -332,9 +383,13 @@ export class GoogleAIStudioProvider implements LLMProvider {
       });
 
       if (!response.ok) {
+        const providerCause = await this.readErrorCause(response);
+
         throw new AIServiceError(
-          "Google AI Studio request failed.",
+          `Google AI Studio request failed (HTTP ${response.status}): ${providerCause}`,
           response.status === 429 || response.status >= 500,
+          response.status,
+          providerCause,
         );
       }
 
@@ -365,14 +420,70 @@ export class GoogleAIStudioProvider implements LLMProvider {
   private parseStructuredResponse<T>(
     responseText: string,
     schema: z.ZodType<T>,
-  ) {
-    try {
-      const result = schema.safeParse(JSON.parse(responseText));
+  ): StructuredResponse<T> {
+    let json: unknown;
 
-      return result.success ? result.data : null;
+    try {
+      json = JSON.parse(responseText);
     } catch {
-      return null;
+      logEvent("ai.structured_output_invalid", {
+        provider: "google-ai-studio",
+        operation: "complete",
+        cause: "invalid_json",
+        issues: "invalid_json",
+      });
+      return {
+        repairInstructions: "- root: The response was not valid JSON.",
+        success: false,
+      };
     }
+
+    const result = schema.safeParse(json);
+
+    if (!result.success) {
+      logEvent("ai.structured_output_invalid", {
+        provider: "google-ai-studio",
+        operation: "complete",
+        cause: "schema_validation",
+        issues: summarizeIssues(result.error),
+      });
+      return {
+        repairInstructions: repairInstructions(result.error),
+        success: false,
+      };
+    }
+
+    return { data: result.data, success: true };
+  }
+
+  private async readErrorCause(response: Response) {
+    let body = "";
+
+    try {
+      body = await response.text();
+    } catch {
+      return "No error details received.";
+    }
+
+    if (!body) {
+      return "No error details received.";
+    }
+
+    const parsed = GeminiErrorSchema.safeParse(
+      (() => {
+        try {
+          return JSON.parse(body);
+        } catch {
+          return null;
+        }
+      })(),
+    );
+    const message = parsed.success ? parsed.data.error?.message : body;
+
+    return (message ?? "No error details received.")
+      .replaceAll(this.apiKey, "[redacted]")
+      .replace(/\s+/g, " ")
+      .slice(0, MAX_PROVIDER_ERROR_LENGTH);
   }
 
   private parseStreamEvent(event: string) {

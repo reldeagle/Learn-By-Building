@@ -26,7 +26,7 @@ export function generateProject(
       },
     ],
     schema: ProjectSchema,
-    maxTokens: 1_200,
+    maxTokens: 3_000,
     temperature: 0.4,
   });
 }

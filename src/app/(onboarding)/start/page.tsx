@@ -4,6 +4,8 @@ import { OnboardingForm } from "@/components/onboarding-form";
 import { getSignInUrl } from "@/lib/auth-redirect";
 import { UnauthorizedError, requireUser } from "@/lib/auth";
 
+export const maxDuration = 60;
+
 export default async function StartPage() {
   let user;
 

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AIServiceError } from "@/ai/llm-provider";
 
@@ -100,6 +100,10 @@ beforeEach(() => {
   });
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("POST /api/review", () => {
   it("reports local progress and persists the completed review", async () => {
     const response = await POST(
@@ -127,6 +131,42 @@ describe("POST /api/review", () => {
       "request.complete",
       expect.objectContaining({ operation: "review", verdict: "complete" }),
     );
+  });
+
+  it("sends a heartbeat while a mentor review is still running", async () => {
+    vi.useFakeTimers();
+    let finishReview: (value: typeof review) => void;
+    mocks.reviewSubmission.mockImplementation(
+      () =>
+        new Promise<typeof review>((resolve) => {
+          finishReview = resolve;
+        }),
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/review", {
+        method: "POST",
+        body: JSON.stringify({
+          projectId,
+          submission: { code: "export default function App() {}" },
+        }),
+      }),
+    );
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+
+    expect(decoder.decode((await reader.read()).value)).toContain(
+      "Reading your submission",
+    );
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(decoder.decode((await reader.read()).value)).toContain(
+      "Still reviewing your submission",
+    );
+
+    finishReview!(review);
+    await reader.read();
   });
 
   it("rejects a project that is not owned by the session user", async () => {
