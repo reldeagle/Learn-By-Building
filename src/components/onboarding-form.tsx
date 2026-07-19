@@ -147,7 +147,7 @@ export function OnboardingForm({ userEmail }: { userEmail: string }) {
           placeholder="For example: I finished a tutorial and have built a small todo app."
           value={jsExperience}
         />
-        <span className="mt-2 block text-right text-xs text-slate-500">
+        <span className="mt-2 block text-right text-xs text-slate-400">
           {jsExperience.length}/1000
         </span>
       </label>

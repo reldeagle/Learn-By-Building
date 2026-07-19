@@ -43,3 +43,54 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma migrate deploy
+
+  smoke:
+    needs: verify
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: learn_by_building
+          POSTGRES_PASSWORD: ci
+          POSTGRES_USER: ci
+        options: >-
+          --health-cmd "pg_isready -U ci -d learn_by_building"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      AUTH_DEMO_PASSWORD: ci-password
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/learn_by_building
+      DATABASE_URL_UNPOOLED: postgresql://ci:ci@localhost:5432/learn_by_building
+      LLM_PROVIDER: fake
+      NEXTAUTH_SECRET: ci-secret
+      NEXTAUTH_URL: http://localhost:3001
+      SMOKE_BASE_URL: http://localhost:3001
+      SMOKE_FAKE_PROVIDER: "true"
+      SMOKE_PASSWORD: ci-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx prisma migrate deploy
+      - run: npm run build
+      - name: Start application
+        run: npm run start > /tmp/learn-by-building.log 2>&1 &
+      - name: Wait for application
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:3001/api/health; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/learn-by-building.log
+          exit 1
+      - run: npm run test:smoke

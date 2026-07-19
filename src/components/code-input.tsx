@@ -289,7 +289,7 @@ export function CodeInput({ projectId }: { projectId: string }) {
       )}
 
       <div className="mt-3 flex items-center justify-between gap-4">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-400">
           {submittedCode.length.toLocaleString()}/
           {MAX_SUBMISSION_CHARACTERS.toLocaleString()} characters
           {mode === "files" ? " including file labels" : ""}

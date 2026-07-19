@@ -30,7 +30,7 @@ The mentor persona is the product: **explain, don't fix.** The AI never silently
 | Validation | Zod (input validation + structured LLM output parsing) |
 | Database | Postgres (Neon/Supabase serverless) |
 | ORM | Prisma |
-| Auth | Auth.js (NextAuth) — concrete provider TBD |
+| Auth | NextAuth v4 — Google OAuth in production |
 | Hosting | Vercel |
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system design.
@@ -76,7 +76,7 @@ See [PRD-Learn-By-Building.md](PRD-Learn-By-Building.md) for full goals, non-goa
 |---|---|
 | [PRD-Learn-By-Building.md](PRD-Learn-By-Building.md) | Requirements, scope, user flow, success metrics |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, module boundaries, data model, tech decisions |
-| [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md) | Ordered, independently-testable build tasks |
+| [ROADMAP.md](ROADMAP.md) | Ordered, independently-testable build tasks and polish phases |
 | [AGENTS.md](AGENTS.md) | Operating rules for AI coding agents working in this repo |
 
 These documents are the source of truth — implementation should not contradict them without an explicit, called-out update.
@@ -102,13 +102,13 @@ Useful checks:
 
 ### Browser smoke suite
 
-The focused browser suite covers development credentials, start/resume, pasted code, drag-and-drop files, mentor retry, and the session-expiry return path. It is intentionally opt-in and never runs in CI: it needs an isolated database with Prisma migrations applied and a local server configured with `LLM_PROVIDER=fake`, so it never calls Gemini.
+The focused browser suite covers development credentials, start/resume, pasted code, drag-and-drop files, mentor retry, and the session-expiry return path. GitHub Actions runs it against an isolated Postgres service with `LLM_PROVIDER=fake`, so it never calls Gemini.
 
 1. Start the app against a disposable local or Neon development database after running `npx prisma migrate deploy`. Set `AUTH_DEMO_PASSWORD` and `LLM_PROVIDER=fake` in that server's environment.
 2. Install the test browser once with `npx playwright install chromium`.
 3. In another terminal, run `SMOKE_BASE_URL=http://localhost:3001 SMOKE_PASSWORD=<the local demo password> SMOKE_FAKE_PROVIDER=true npm run test:smoke`. PowerShell users can set those variables with `$env:` before the command.
 
-Never point this suite at a Preview or Production deployment. It creates learner records and projects. CI uses `FakeProvider` unit/integration tests only and does not call Gemini.
+Never point this suite at a Preview or Production deployment. It creates learner records and projects. Both local smoke runs and CI use `FakeProvider` and do not call Gemini.
 
 ## Troubleshooting core flows
 
@@ -162,6 +162,7 @@ Set the following Vercel Project Settings environment variables. Add them to bot
 | `DATABASE_URL` | **Pooled** Neon Postgres connection string for that environment. Its hostname includes `-pooler` and it includes `sslmode=require`. Preview must use a separate database from Production. |
 | `DATABASE_URL_UNPOOLED` | **Direct** Neon connection string for Prisma migrations only. Do not use it for Vercel runtime traffic. |
 | `LLM_PROVIDER` | `google-ai-studio` |
+| `LLM_MODEL` | Optional Gemini model override. Leave unset to use `gemini-2.5-flash`. |
 | `GOOGLE_AI_STUDIO_API_KEY` | Your Google AI Studio server-side API key. |
 | `NEXTAUTH_URL` | Local: `http://localhost:3001`. Preview: the exact HTTPS URL of that preview deployment, preferably as a branch-specific variable. Production: the canonical HTTPS URL, for example `https://your-domain.example`. |
 | `NEXTAUTH_SECRET` | A newly generated random secret. Use a different value for Preview and Production. |

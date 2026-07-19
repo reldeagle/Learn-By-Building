@@ -85,10 +85,6 @@ vi.mock("@/data/repositories", () => ({
       return Promise.resolve(null);
     }
 
-    updateLevel(_id: string, level: number) {
-      state.currentLevel = level;
-      return Promise.resolve({});
-    }
   },
   ProjectRepository: class {
     create() {
@@ -122,14 +118,6 @@ vi.mock("@/data/repositories", () => ({
       return Promise.resolve(2);
     }
 
-    markComplete() {
-      state.projectStatus = "completed";
-      return Promise.resolve({});
-    }
-
-    updateRequirementStatus() {
-      return Promise.resolve([]);
-    }
   },
   ReviewRepository: class {
     saveReviewAndUpdateProject({

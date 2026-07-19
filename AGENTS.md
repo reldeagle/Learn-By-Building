@@ -24,7 +24,7 @@ Read before making changes. Do not contradict them.
 |---|---|
 | `PRD-Learn-By-Building.md` | Requirements, scope, non-goals, success metrics |
 | `ARCHITECTURE.md` | System design, module boundaries, data model, tech decisions |
-| `IMPLEMENTATION-ROADMAP.md` | Task order and granularity |
+| `ROADMAP.md` | Task order and granularity |
 
 If a requested change requires deviating from these documents, say so and propose the document update — do not silently diverge.
 
@@ -34,8 +34,8 @@ If a requested change requires deviating from these documents, say so and propos
 - **Tailwind CSS** — styling
 - **Zod** — input validation AND structured LLM output parsing (one schema source)
 - **Prisma + Postgres** (Neon/Supabase serverless) — data
-- **Auth.js (NextAuth)** — sessions (concrete provider TBD)
-- **Provider-agnostic `LLMProvider` interface**, Claude (Anthropic Messages API) as default adapter
+- **NextAuth v4** — sessions (Google OAuth in production)
+- **Provider-agnostic `LLMProvider` interface**, Google AI Studio (Gemini 2.5 Flash) as default adapter
 - **Vercel** — hosting
 
 ## Architecture Rules

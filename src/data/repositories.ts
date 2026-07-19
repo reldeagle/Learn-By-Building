@@ -112,12 +112,6 @@ export class TrackRepository {
     });
   }
 
-  updateLevel(trackId: string, currentLevel: number) {
-    return prisma.track.update({
-      where: { id: trackId },
-      data: { currentLevel },
-    });
-  }
 }
 
 export class ProjectRepository {
@@ -195,26 +189,6 @@ export class ProjectRepository {
     });
   }
 
-  updateRequirementStatus(
-    projectId: string,
-    requirementStatus: Array<{ requirement: string; met: boolean }>,
-  ) {
-    return prisma.$transaction(
-      requirementStatus.map(({ requirement, met }) =>
-        prisma.requirement.updateMany({
-          where: { projectId, text: requirement },
-          data: { lastMet: met },
-        }),
-      ),
-    );
-  }
-
-  markComplete(projectId: string) {
-    return prisma.project.update({
-      where: { id: projectId },
-      data: { status: ProjectStatus.completed },
-    });
-  }
 }
 
 export class SubmissionRepository {

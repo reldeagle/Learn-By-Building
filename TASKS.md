@@ -1,10 +1,10 @@
 # Tasks — Learn By Building
 
-Live progress tracker. Full task detail and test criteria live in [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md) — task numbers here map 1:1 to that doc.
+Live progress tracker. Full task detail and test criteria live in [ROADMAP.md](ROADMAP.md) — task numbers here map 1:1 to that doc.
 
 **Legend:** `- [ ]` not started · `- [~]` in progress · `- [x]` done
 
-**Progress:** 36 / 50 complete
+**Core implementation progress:** 50 / 50 complete
 
 ---
 
@@ -21,8 +21,8 @@ Live progress tracker. Full task detail and test criteria live in [IMPLEMENTATIO
 - [x] 8. `Project` + `Requirement` models + relations + migration
 - [x] 9. `Submission`, `Review`, `HintUnlock` models + relations + migration
 - [x] 10. Singleton Prisma client in `data/client.ts` (serverless-safe)
-- [x] 11. `TrackRepository` (create, getByUser, updateLevel)
-- [x] 12. `ProjectRepository` (create with requirements, getActive, markComplete)
+- [x] 11. `TrackRepository` (create, getByUser)
+- [x] 12. `ProjectRepository` (create with requirements, getActive)
 - [x] 13. `SubmissionRepository` + `ReviewRepository`
 - [x] 14. `HintRepository` (getCurrentLevel, recordUnlock)
 
@@ -48,7 +48,7 @@ Live progress tracker. Full task detail and test criteria live in [IMPLEMENTATIO
 - [x] 29. Progression Engine: `evaluateProgress(track, review)`
 
 ## Phase 5 — API Surface
-- [x] 30. Auth.js (NextAuth) + session helper
+- [x] 30. NextAuth v4 + session helper
 - [x] 31. `startTrack` server action (validate → create track → seed Project 1)
 - [x] 32. `requestNextProject` server action (Progression → Generator → persist)
 - [x] 33. `POST /api/review` route handler (streaming + persist Review)
@@ -57,21 +57,32 @@ Live progress tracker. Full task detail and test criteria live in [IMPLEMENTATIO
 - [x] 36. Ownership/authorization scoping on every read/write
 
 ## Phase 6 — Frontend
-- [ ] 37. Onboarding / Skill-Select screen wired to `startTrack`
-- [ ] 38. Active Project screen (server component)
-- [ ] 39. Code submission form (paste + file upload)
-- [ ] 40. Streaming Review result view (feedback + per-requirement status + verdict)
-- [ ] 41. "Improve & resubmit" vs "Unlock next" branch
-- [ ] 42. Hint control (reveal one level at a time, then Show solution)
-- [ ] 43. Track / Progress screen
+- [x] 37. Onboarding / Skill-Select screen wired to `startTrack`
+- [x] 38. Active Project screen (server component)
+- [x] 39. Code submission form (paste + file upload)
+- [x] 40. Streaming Review result view (feedback + per-requirement status + verdict)
+- [x] 41. "Improve & resubmit" vs "Unlock next" branch
+- [x] 42. Hint control (reveal one level at a time, then Show solution)
+- [x] 43. Track / Progress screen
 
 ## Phase 7 — Cross-Cutting & Hardening
-- [ ] 44. Typed error handling + graceful AI-failure UI
-- [ ] 45. Structured request + AI-call logging
-- [ ] 46. Thumbs up/down on reviews (persisted)
-- [ ] 47. End-to-end happy-path test (with FakeProvider)
+- [x] 44. Typed error handling + graceful AI-failure UI
+- [x] 45. Structured request + AI-call logging
+- [x] 46. Thumbs up/down on reviews (persisted)
+- [x] 47. End-to-end happy-path test (with FakeProvider)
 
 ## Phase 8 — Deployment
-- [ ] 48. CI pipeline (typecheck → lint → tests → build → migrate)
-- [ ] 49. Vercel project + env vars + preview deploys
-- [ ] 50. Production migration + smoke test the full loop
+- [x] 48. CI pipeline (typecheck → lint → tests → build → migrate)
+- [x] 49. Vercel project + env vars + preview deploys
+- [x] 50. Production migration + smoke test the full loop
+
+## Polish Roadmap — Phases 9–14
+
+- [~] Phase 9 — Baseline & repo hygiene
+- [~] Phase 10 — AI mentor recovery
+- [x] Phase 11 — Flow & cohesion fixes
+- [x] Phase 12 — Depth features
+- [x] Phase 13 — Professional polish & ops
+- [ ] Phase 14 — Verification & release
+
+See [ROADMAP.md](ROADMAP.md) for tasks 51–78 and their release criteria.
