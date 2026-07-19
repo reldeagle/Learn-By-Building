@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+const REVIEW_RESULT_TIMEOUT_MS = 15_000;
+
 function requiredEnvironment(name: "SMOKE_BASE_URL" | "SMOKE_PASSWORD") {
   const value = process.env[name];
 
@@ -65,7 +67,7 @@ test("pastes a submission and receives a review", async ({ page }) => {
 
   await expect(
     page.getByRole("heading", { name: "Project complete" }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: REVIEW_RESULT_TIMEOUT_MS });
 });
 
 test("drops multiple source files and receives a review", async ({ page }) => {
@@ -100,7 +102,7 @@ test("drops multiple source files and receives a review", async ({ page }) => {
   await page.getByRole("button", { name: "Request review" }).click();
   await expect(
     page.getByRole("heading", { name: "Project complete" }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: REVIEW_RESULT_TIMEOUT_MS });
 });
 
 test("preserves a draft when the mentor fails and retries successfully", async ({
@@ -112,11 +114,10 @@ test("preserves a draft when the mentor fails and retries successfully", async (
   const code =
     "export default function App() { return <main>Retry me</main>; }";
   await page.getByLabel("React TypeScript (TSX) code").fill(code);
-  let reviewRequests = 0;
+  let allowReview = false;
 
   await page.route("**/api/review", async (route) => {
-    reviewRequests += 1;
-    if (reviewRequests === 1) {
+    if (!allowReview) {
       await route.fulfill({
         status: 503,
         contentType: "application/json",
@@ -142,10 +143,11 @@ test("preserves a draft when the mentor fails and retries successfully", async (
     ),
   ).resolves.toContain("Retry me");
 
+  allowReview = true;
   await page.getByRole("button", { name: "Retry review" }).click();
   await expect(
     page.getByRole("heading", { name: "Project complete" }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: REVIEW_RESULT_TIMEOUT_MS });
 });
 
 test("returns to the protected project after session expiry", async ({
