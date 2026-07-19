@@ -65,8 +65,8 @@ A minimal set chosen for depth-per-effort. Explicitly **skip** PRD Feature 5 (ch
 
 ## Phase 14 — Verification & release (Effort: S)
 
-- [ ] 77. **Full verification matrix.** All four columns pass: (1) local fake provider — full loop + hints + attempt history + health 200; (2) local real Gemini — onboard → needs_work → improve → complete → unlock, no `ai.error` logs; (3) deployed — same loop via Google OAuth, a >10s review completes, health 200, security headers present; (4) CI — typecheck, lint, unit, build, smoke all green; `prisma migrate deploy` clean.
-- [ ] 78. **Release notes + 3-minute demo script.** Short section in the README: what changed, and how to demo the loop — onboard → submit flawed code → read mentor feedback → resubmit → history shows improvement → unlock next project.
+- [~] 77. **Full verification matrix.** All four columns pass: (1) local fake provider — full loop + hints + attempt history + health 200; (2) local real Gemini — onboard → needs_work → improve → complete → unlock, no `ai.error` logs; (3) deployed — same loop via Google OAuth, a >10s review completes, health 200, security headers present; (4) CI — typecheck, lint, unit, build, smoke all green; `prisma migrate deploy` clean.
+- [x] 78. **Release notes + 3-minute demo script.** Short section in the README: what changed, and how to demo the loop — onboard → submit flawed code → read mentor feedback → resubmit → history shows improvement → unlock next project.
 
 ---
 

@@ -192,10 +192,27 @@ Google OAuth callback URLs must use this exact format:
 For local development that is `http://localhost:3001/api/auth/callback/google`.
 Add the corresponding exact Preview and Production URLs in the Google Cloud OAuth client configuration. The local `AUTH_DEMO_PASSWORD` flow is disabled in production and should not be added to Vercel.
 
+## Release notes
+
+The polish release makes the learner loop more dependable and easier to follow:
+
+- Gemini failures now provide safe, retryable learner feedback and structured owner diagnostics.
+- Reviews retain the same presentation while streaming and after refresh, and attempts show visible improvement over time.
+- The app has branded loading, error, and not-found states, protected learner routes, security headers, health checks, and browser smoke coverage in CI.
+- Drafts, uploads, hints, review feedback, and next-project progression are all preserved through the core loop.
+
+### Three-minute demo
+
+1. Sign in, choose **React**, add a short JavaScript background, and start a track.
+2. Submit deliberately incomplete code. Point out the requirement-by-requirement verdict and mentor explanation; the mentor explains what to change rather than rewriting code.
+3. Improve the submission and resubmit until the project is complete.
+4. Refresh the review page and show **Your attempts**: the earlier attempt, the requirements met, and the completed submission remain visible.
+5. Select **Unlock next project**, then open **Your track** to show the higher-level next-project context.
+
 ### Release checklist
 
-- [ ] Run `npm run typecheck`, `npm run lint`, `npm test`, and `npm run build`.
-- [ ] Run `npm run test:smoke` only against the isolated local fake-provider environment described above.
+- [x] Run `npm run typecheck`, `npm run lint`, `npm test`, and `npm run build`.
+- [x] Run `npm run test:smoke` only against the isolated local fake-provider environment described above.
 - [ ] On a Vercel Preview, verify the deployed Google callback URL is registered, sign in, start or resume a track, paste code, upload source files, receive feedback, and continue progression.
 - [ ] Check the primary flow at desktop and narrow mobile widths, with keyboard-only navigation and visible focus indicators.
 - [ ] Throttle the browser network and confirm loading, disabled, retry, and saved-draft states remain understandable.

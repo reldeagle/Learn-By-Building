@@ -83,6 +83,6 @@ Live progress tracker. Full task detail and test criteria live in [ROADMAP.md](R
 - [x] Phase 11 — Flow & cohesion fixes
 - [x] Phase 12 — Depth features
 - [x] Phase 13 — Professional polish & ops
-- [ ] Phase 14 — Verification & release
+- [~] Phase 14 — Verification & release
 
 See [ROADMAP.md](ROADMAP.md) for tasks 51–78 and their release criteria.
