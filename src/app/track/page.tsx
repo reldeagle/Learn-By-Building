@@ -32,6 +32,10 @@ export default async function TrackPage() {
     (project) => project.status === "completed",
   );
   const latestCompletedProject = completedProjects.at(-1);
+  const upcomingLevel = activeProject
+    ? track.currentLevel + 1
+    : track.currentLevel;
+  const buildsOn = activeProject?.title ?? latestCompletedProject?.title;
 
   return (
     <main className="min-h-full flex-1 bg-slate-950 px-6 py-10 text-slate-100 sm:py-16">
@@ -117,11 +121,15 @@ export default async function TrackPage() {
           </h2>
           <div className="mt-4">
             {activeProject ? (
-              <ProjectCard status="upcoming" title="Next React project" />
+              <ProjectCard
+                description={`Generated after you complete this project. It will build on ${buildsOn}.`}
+                status="upcoming"
+                title={`Level ${upcomingLevel} ${track.technology} project`}
+              />
             ) : (
               <p className="rounded-2xl border border-slate-800 bg-slate-900 px-5 py-4 text-sm leading-6 text-slate-400">
-                Open the latest completed review to generate the next project at
-                your current level.
+                Level {upcomingLevel} will be generated when you unlock your
+                next project. It will build on {buildsOn ?? "your completed work"}.
               </p>
             )}
           </div>

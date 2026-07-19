@@ -4,11 +4,16 @@ import { ReviewActions } from "@/components/review-actions";
 import { ReviewFeedback } from "@/components/review-feedback";
 import { ReviewStream } from "@/components/review-stream";
 import {
+  AttemptHistory,
   FeedbackItem,
   RequirementRow,
   VerdictBanner,
 } from "@/components/project-ui";
-import { ProjectRepository, ReviewRepository } from "@/data/repositories";
+import {
+  ProjectRepository,
+  ReviewRepository,
+  SubmissionRepository,
+} from "@/data/repositories";
 import { getSignInUrl } from "@/lib/auth-redirect";
 import { UnauthorizedError, requireUser } from "@/lib/auth";
 import { ReviewSchema } from "@/lib/schemas";
@@ -72,10 +77,11 @@ async function PersistedReview({
   trackId: string;
   userId: string;
 }) {
-  const review = await new ReviewRepository().getLatestForProjectForUser(
-    projectId,
-    userId,
-  );
+  const [review, submissions, activeProject] = await Promise.all([
+    new ReviewRepository().getLatestForProjectForUser(projectId, userId),
+    new SubmissionRepository().listAttempts(projectId, userId),
+    new ProjectRepository().getActive(trackId),
+  ]);
 
   if (!review) {
     redirect(`/project/${projectId}`);
@@ -86,7 +92,29 @@ async function PersistedReview({
     requirementStatus: review.requirementStatus,
     feedback: review.feedback,
   });
-  const activeProject = await new ProjectRepository().getActive(trackId);
+  const attempts = submissions.flatMap((submission) => {
+    if (!submission.review) {
+      return [];
+    }
+
+    const attemptReview = ReviewSchema.parse({
+      verdict: submission.review.verdict,
+      requirementStatus: submission.review.requirementStatus,
+      feedback: submission.review.feedback,
+    });
+
+    return [
+      {
+        attempt: submission.attempt,
+        createdAt: submission.createdAt,
+        requirementsMet: attemptReview.requirementStatus.filter(
+          (status) => status.met,
+        ).length,
+        requirementsTotal: attemptReview.requirementStatus.length,
+        verdict: attemptReview.verdict,
+      },
+    ];
+  });
 
   return (
     <div className="space-y-8">
@@ -125,6 +153,8 @@ async function PersistedReview({
           </ul>
         </section>
       ) : null}
+
+      {attempts.length ? <AttemptHistory attempts={attempts} /> : null}
 
       <ReviewFeedback
         initialRating={review.learnerFeedback}

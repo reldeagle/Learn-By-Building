@@ -108,14 +108,71 @@ export function FeedbackItem({
   );
 }
 
+export function AttemptHistory({
+  attempts,
+}: {
+  attempts: Array<{
+    attempt: number;
+    createdAt: Date;
+    verdict: "complete" | "needs_work";
+    requirementsMet: number;
+    requirementsTotal: number;
+  }>;
+}) {
+  return (
+    <section>
+      <h2 className="text-lg font-semibold tracking-tight text-slate-100">
+        Your attempts
+      </h2>
+      <ol className="mt-4 space-y-3">
+        {attempts.map((attempt) => (
+          <li
+            className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-300"
+            key={attempt.attempt}
+          >
+            <p className="font-medium text-slate-100">
+              Attempt {attempt.attempt}
+              <span className="font-normal text-slate-400">
+                {" "}
+                ·{" "}
+                {attempt.createdAt.toLocaleDateString("en-NZ", {
+                  day: "numeric",
+                  month: "short",
+                  timeZone: "UTC",
+                  year: "numeric",
+                })}
+              </span>
+            </p>
+            <p className="mt-1 text-slate-400">
+              {attempt.requirementsMet}/{attempt.requirementsTotal} requirements
+              met ·{" "}
+              <span
+                className={
+                  attempt.verdict === "complete"
+                    ? "text-emerald-300"
+                    : "text-amber-200"
+                }
+              >
+                {attempt.verdict === "complete" ? "Complete" : "Keep going"}
+              </span>
+            </p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 export function ProjectCard({
   title,
   status,
   href,
+  description,
 }: {
   title: string;
   status: "active" | "completed" | "upcoming";
   href?: string;
+  description?: string;
 }) {
   const content = (
     <div
@@ -128,11 +185,12 @@ export function ProjectCard({
       <div>
         <p className="font-medium text-slate-100">{title}</p>
         <p className="mt-1 text-sm text-slate-400">
-          {status === "active"
-            ? "Active project"
-            : status === "completed"
-              ? "Completed"
-              : "Unlock by completing your active project"}
+          {description ??
+            (status === "active"
+              ? "Active project"
+              : status === "completed"
+                ? "Completed"
+                : "Unlock by completing your active project")}
         </p>
       </div>
       <span

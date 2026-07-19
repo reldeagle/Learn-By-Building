@@ -243,9 +243,12 @@ export class SubmissionRepository {
     throw new Error("Unable to save submission after retrying.");
   }
 
-  listAttempts(projectId: string) {
+  listAttempts(projectId: string, userId: string) {
     return prisma.submission.findMany({
-      where: { projectId },
+      where: {
+        projectId,
+        project: { track: { userId } },
+      },
       include: { review: true },
       orderBy: { attempt: "asc" },
     });
