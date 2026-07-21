@@ -19,11 +19,17 @@ jobs:
       NEXTAUTH_URL: http://localhost:3001
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+
       - run: npm ci
+
+      # Generate Prisma Client before TypeScript checks
+      - run: npx prisma generate
+
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
@@ -37,10 +43,12 @@ jobs:
       DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+
       - run: npm ci
       - run: npx prisma migrate deploy
 
@@ -61,6 +69,7 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+
     env:
       AUTH_DEMO_PASSWORD: ci-password
       DATABASE_URL: postgresql://ci:ci@localhost:5432/learn_by_building
@@ -71,18 +80,25 @@ jobs:
       SMOKE_BASE_URL: http://localhost:3001
       SMOKE_FAKE_PROVIDER: "true"
       SMOKE_PASSWORD: ci-password
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+
       - run: npm ci
+      - run: npx prisma generate
+      - run: npm run typecheck
       - run: npx playwright install --with-deps chromium
       - run: npx prisma migrate deploy
       - run: npm run build
+
       - name: Start application
         run: npm run start > /tmp/learn-by-building.log 2>&1 &
+
       - name: Wait for application
         run: |
           for attempt in {1..30}; do
@@ -93,4 +109,5 @@ jobs:
           done
           cat /tmp/learn-by-building.log
           exit 1
+
       - run: npm run test:smoke
