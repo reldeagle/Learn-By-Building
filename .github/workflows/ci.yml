@@ -15,7 +15,7 @@ jobs:
       AUTH_DEMO_PASSWORD: ci-password
       DATABASE_URL: postgresql://ci:ci@localhost:5432/learn_by_building
       LLM_PROVIDER: fake
-      NEXTAUTH_SECRET: ci-secret
+      NEXTAUTH_SECRET: ci-nextauth-secret-for-tests-only-123456
       NEXTAUTH_URL: http://localhost:3001
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +75,7 @@ jobs:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/learn_by_building
       DATABASE_URL_UNPOOLED: postgresql://ci:ci@localhost:5432/learn_by_building
       LLM_PROVIDER: fake
-      NEXTAUTH_SECRET: ci-secret
+      NEXTAUTH_SECRET: ci-nextauth-secret-for-tests-only-123456
       NEXTAUTH_URL: http://localhost:3001
       SMOKE_BASE_URL: http://localhost:3001
       SMOKE_FAKE_PROVIDER: "true"
