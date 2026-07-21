@@ -78,11 +78,11 @@ Live progress tracker. Full task detail and test criteria live in [ROADMAP.md](R
 
 ## Polish Roadmap — Phases 9–14
 
-- [~] Phase 9 — Baseline & repo hygiene
-- [~] Phase 10 — AI mentor recovery
+- [x] Phase 9 — Baseline & repo hygiene
+- [x] Phase 10 — AI mentor recovery
 - [x] Phase 11 — Flow & cohesion fixes
 - [x] Phase 12 — Depth features
 - [x] Phase 13 — Professional polish & ops
-- [~] Phase 14 — Verification & release
+- [x] Phase 14 — Verification & release
 
 See [ROADMAP.md](ROADMAP.md) for tasks 51–78 and their release criteria.

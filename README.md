@@ -2,7 +2,91 @@
 
 **Learn By Building** is an AI-mentor coding-education web app. Instead of watching lessons, learners are handed increasingly difficult real projects by an AI mentor, submit their own code, and get concise feedback that *explains* mistakes rather than fixing them. Progression is earned by demonstrated ability, not by chapter number.
 
-> Status: **core learner loop implemented**. See [Project Status](#project-status) and [Troubleshooting](#troubleshooting-core-flows) before reporting a local or deployment issue.
+> Status: **complete and deployed.** All build and polish phases have shipped. **Live demo: <https://learn-by-building-lilac.vercel.app>** · License: [MIT](LICENSE). See [Project Status](#project-status) and [Troubleshooting](#troubleshooting-core-flows) before reporting a local or deployment issue.
+
+---
+
+## Live Demo & Judging Quick Start
+
+**Live app:** <https://learn-by-building-lilac.vercel.app> (health check at [`/api/health`](https://learn-by-building-lilac.vercel.app/api/health))
+
+**Demo video (3 min):** <https://youtu.be/srG3xDc5ORg>
+
+The fastest way to see the whole loop:
+
+1. Sign in with Google, pick **React**, add a one-line note about your JavaScript background, and start the track. Your first project gets generated in a few seconds.
+2. Read the project: goal, requirements checklist, expected outcome. Try the hint ladder if you're curious (nudge → specific → near-solution → solution).
+3. Paste the sample submission below and submit it for review.
+4. Read the mentor review. It goes requirement by requirement and explains what's wrong and why — it never hands you rewritten code.
+5. Fix things and resubmit until the project is complete, refresh to see the **Your attempts** history, then unlock the next project.
+
+Projects are generated per learner so the exact requirements vary — any small React component works as a submission. This one gives the mentor plenty to talk about:
+
+<details>
+<summary><strong>Sample submission — a task list with deliberate mistakes</strong></summary>
+
+```jsx
+import { useState } from "react";
+
+export default function TaskList() {
+  const [tasks, setTasks] = useState([]);
+  const [text, setText] = useState("");
+
+  function addTask() {
+    tasks.push({ name: text, done: false });
+    setTasks(tasks);
+    setText("");
+  }
+
+  function toggle(i) {
+    tasks[i].done = !tasks[i].done;
+    setTasks(tasks);
+  }
+
+  return (
+    <div>
+      <input value={text} onChange={(e) => setText(e.target.value)} />
+      <button onClick={addTask()}>Add</button>
+      <ul>
+        {tasks.map((t) => (
+          <li onClick={toggle}>
+            {t.done ? "✓ " : ""}
+            {t.name}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+Seeded issues for the mentor to find: direct state mutation, `onClick={addTask()}` invoked during render, a missing list `key`, a click handler that never receives its index, and no empty-input guard.
+
+</details>
+
+**No API keys?** The whole loop also runs fully offline: set `LLM_PROVIDER=fake` locally (see [Local setup](#local-setup)) for a deterministic demo without calling any model.
+
+---
+
+## How I Used Codex and GPT-5.6
+
+I built this for OpenAI Build Week with Codex running GPT-5.6, and Codex did most of the implementation work.
+
+My approach was docs-first. Before any code, I wrote up what I wanted: the [PRD](PRD-Learn-By-Building.md), the [architecture](ARCHITECTURE.md), and a numbered task list ([TASKS.md](TASKS.md) / [ROADMAP.md](ROADMAP.md)), plus [AGENTS.md](AGENTS.md) with the rules I wanted the agent to work under — keep it simple, small diffs, don't change the stack, and the docs win over the code when they disagree. Then I pointed Codex at the task list and worked through it phase by phase. You can see this directly in the commit history: most commits map to a phase (`fix: restore phase 10 AI mentor reliability`, `feat: complete phase 12 learner depth`), and each task had to pass its own checks before I moved to the next one.
+
+Where Codex saved me the most time:
+
+- Scaffolding the whole core loop: the four domain modules (`project-generator`, `code-review`, `hint-system`, `progression`), the provider-agnostic AI layer, the Prisma repositories, and the App Router UI.
+- Tests. Codex wrote the 12 Vitest suites and the 5-flow Playwright smoke suite alongside the features (not after), and hooked them into CI with a deterministic fake provider so CI never calls a live model.
+- Debugging the ugly stuff. The mentor review kept coming back empty — it turned out `gemini-2.5-flash` was quietly spending the entire output budget on thinking tokens. Codex tracked that down and fixed it (`thinkingConfig`, bigger budgets, and real error logging so failures name their cause). It also caught a Prisma migration checksum drift that would have broken every future deploy.
+- The whole polish round ([ROADMAP.md](ROADMAP.md), tasks 51–78): unifying the streamed and saved review UI, branded error/404 pages, attempt history, the health endpoint, security headers, serverless timeouts, and rate-limit ordering.
+
+Decisions I worked through with GPT-5.6 before committing to them:
+
+- One provider-agnostic `LLMProvider` interface with Zod-validated structured output, so every model response that drives app logic gets schema-checked — with one automatic repair retry when the model gets it wrong.
+- "Explain, don't fix" enforced in the prompt *and* the response schema, not just as a vibe. The mentor is never allowed to hand back rewritten code — that's the whole product.
+- Everything AI and database stays server-side; the browser only ever talks to server actions and route handlers.
+- Rate limiting lives in the database instead of in memory, because serverless.
 
 ---
 
@@ -85,7 +169,7 @@ These documents are the source of truth — implementation should not contradict
 
 ## Project Status
 
-Phases 0 through 8 are complete. The application is ready for CI and Vercel deployment after the required environment variables and database are configured.
+All phases are complete: the core build (phases 0–8, [TASKS.md](TASKS.md)) and the polish round (phases 9–14, [ROADMAP.md](ROADMAP.md)). The app is deployed on Vercel at <https://learn-by-building-lilac.vercel.app>, with CI running typecheck, lint, unit tests, build, and the browser smoke suite on every push.
 
 ## Local setup
 
@@ -220,10 +304,14 @@ The polish release makes the learner loop more dependable and easier to follow:
 
 ---
 
-## Key Open Questions
+## Future Work
 
-- Google OAuth client configuration for local, Preview, and Production callback URLs.
+- Additional technology tracks beyond React (TypeScript and Node.js are already visible as locked options in onboarding).
 - Submission storage/retention policy and privacy handling for pasted code.
-- Final LLM provider/model selection and prompt-tuning strategy.
+- Prompt tuning and mentor-quality evaluation across models.
 
 Full list in [ARCHITECTURE.md §13](ARCHITECTURE.md#13-key-risks--open-questions).
+
+## License
+
+[MIT](LICENSE)
